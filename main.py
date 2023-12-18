@@ -108,16 +108,6 @@ if __name__ == '__main__':
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12345'
 
-    project = "MVE_%s" % args.dataset
-
-    # if the dataset is 2019LT, construct a new dataset split
-    # with imbalance factor=args.imbalance_factor
-    if args.dataset == "ISIC2019LT":
-        project = "MVE_%s_%d" % (args.dataset, args.imbalance_factor)
-        print("Constructing ISIC2019LT Dataset with imbalance factor=%d" % args.imbalance_factor)
-        construct_ISIC2019LT(imbalance_factor=args.imbalance_factor, data_root=args.data_path,
-                             csv_file_root=os.path.dirname(args.csv_file_train), random_seed=args.seed)
-
     # check checkpoints path
     if not os.path.exists(args.checkpoints):
         os.makedirs(args.checkpoints)
@@ -131,10 +121,7 @@ if __name__ == '__main__':
             config[k] = v
 
         wandb_logger = wandb.init(
-            project=project,
-            notes="Medical Image Analysis",
-            tags=["MIA", "Contrastive learning", "Consistency Loss", "feature rebalance",
-                  "classification loss"],
+            project="MCL_{:s}".format(args.dataset),
             config=config
         )
     else:
