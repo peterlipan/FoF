@@ -16,6 +16,12 @@ class CreateModel(nn.Module):
         )
         classifier = nn.Linear(hid_dim, num_classes)
 
+        if ema:
+            for param in encoder.parameters():
+                param.detach_()
+            for param in classifier.parameters():
+                param.detach_()
+
         self.encoder = encoder
         self.classifier = classifier
     

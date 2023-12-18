@@ -9,13 +9,13 @@ from torch.utils.data import RandomSampler
 import torch.distributed as dist
 from torch.utils.data.distributed import DistributedSampler
 import torch.nn as nn
-from utils import compute_avg_metrics
+from .metrics import compute_avg_metrics
 
 
 def train(dataloaders, model, optimizer, scheduler, args, logger):
     cudnn.benchmark = False
     cudnn.deterministic = True
-    train_loader, eval_loader, test_loader = dataloaders
+    train_loader, test_loader = dataloaders
     model.train()
     cls_criterion = nn.CrossEntropyLoss()
     start = time.time()
@@ -51,7 +51,6 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
             if args.rank == 0:
                 if cur_iter % 30 == 1:
                     cur_lr = optimizer.param_groups[0]['lr']
-                    val_acc, val_f1, val_auc, val_bac, val_sens, val_spec, val_prec, val_mcc, val_kappa = validate(eval_loader, model)
                     test_acc, test_f1, test_auc, test_bac, test_sens, test_spec, test_prec, test_mcc, test_kappa = validate(test_loader, model)
                 if logger is not None:
                     logger.log({'test': {'Accuracy': test_acc,
@@ -63,15 +62,6 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
                                         'Precision': test_prec,
                                         'MCC': test_mcc,
                                         'Kappa': test_kappa},
-                                'validation': {'Accuracy': val_acc,
-                                                'F1 score': val_f1,
-                                                'AUC': val_auc,
-                                                'Balanced Accuracy': val_bac,
-                                                'Sensitivity': val_sens,
-                                                'Specificity': val_spec,
-                                                'Precision': val_prec,
-                                                'MCC': val_mcc,
-                                                'Kappa': val_kappa},
                                 'train': {'loss': train_loss,
                                             'learning_rate': cur_lr}},)
                 
