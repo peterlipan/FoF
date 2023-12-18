@@ -1,4 +1,4 @@
-import od
+import os
 import random
 import numpy as np
 import torch
@@ -19,10 +19,7 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
     model.train()
     cls_criterion = nn.CrossEntropyLoss()
     start = time.time()
-    print(model)
-    print("Number of Trainable Parameters: %d" % count_parameters(model))
 
-    use_patch, roi_dir = ('_patch_', 'all_st_patches_512') if args.use_features else ('_', 'all_st')
     cur_iter = 0
     for epoch in range(args.epochs):
         if isinstance(train_loader.sampler, DistributedSampler):
@@ -49,36 +46,25 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
 
             cur_iter += 1
             if args.rank == 0:
-                if cur_iter % 30 == 1:
+                if cur_iter % 10 == 0:
                     cur_lr = optimizer.param_groups[0]['lr']
                     test_acc, test_f1, test_auc, test_bac, test_sens, test_spec, test_prec, test_mcc, test_kappa = validate(test_loader, model)
-                if logger is not None:
-                    logger.log({'test': {'Accuracy': test_acc,
-                                        'F1 score': test_f1,
-                                        'AUC': test_auc,
-                                        'Balanced Accuracy': test_bac,
-                                        'Sensitivity': test_sens,
-                                        'Specificity': test_spec,
-                                        'Precision': test_prec,
-                                        'MCC': test_mcc,
-                                        'Kappa': test_kappa},
-                                'train': {'loss': train_loss,
-                                            'learning_rate': cur_lr}},)
+                    if logger is not None:
+                        logger.log({'test': {'Accuracy': test_acc,
+                                            'F1 score': test_f1,
+                                            'AUC': test_auc,
+                                            'Balanced Accuracy': test_bac,
+                                            'Sensitivity': test_sens,
+                                            'Specificity': test_spec,
+                                            'Precision': test_prec,
+                                            'MCC': test_mcc,
+                                            'Kappa': test_kappa},
+                                    'train': {'loss': train_loss,
+                                                'learning_rate': cur_lr}},)
                 
                     print('\rEpoch: [%2d/%2d] Iter [%4d/%4d] || Time: %4.4f sec || lr: %.6f || Loss: %.4f' % (
                         epoch, args.epochs, i + 1, len(train_loader), time.time() - start,
                         cur_lr, loss.item()), end='', flush=True)
-            if args.task == "surv":
-                risk_pred_all = np.concatenate((risk_pred_all, pred.detach().cpu().numpy().reshape(-1)))   # Logging Information
-                censor_all = np.concatenate((censor_all, censor.detach().cpu().numpy().reshape(-1)))   # Logging Information
-                survtime_all = np.concatenate((survtime_all, survtime.detach().cpu().numpy().reshape(-1)))   # Logging Information
-            elif args.task == "grad":
-                pred = pred.argmax(dim=1, keepdim=True)
-                grad_acc_epoch += pred.eq(grade.view_as(pred)).sum().item()
-            
-            if args.verbose > 0 and args.print_every > 0 and (batch_idx % args.print_every == 0 or batch_idx+1 == len(train_loader)):
-                print("Epoch {:02d}/{:02d} Batch {:04d}/{:d}, Loss {:9.4f}".format(
-                    epoch+1, args.niter+args.niter_decay, batch_idx+1, len(train_loader), loss.item()))
 
 
 def validate(dataloader, model):

@@ -30,12 +30,12 @@ def main(gpu, args, wandb_logger):
     np.random.seed(args.seed)
 
     # load data file
-    data_cv = pickle.load(open(args.data_file, 'rb'))
+    data_cv = pickle.load(open(args.data_path, 'rb'))
     # TODO: implement cross-validation
-    data_cv_split = data_cv['split'][1]
+    data_cv_split = data_cv['cv_splits'][1]
 
     # training set
-    train_dataset = TCGADataset(args, split='train')
+    train_dataset = TCGADataset(args, data_cv_split, split='train')
 
     # set sampler for parallel training
     if args.world_size > 1:
@@ -54,7 +54,7 @@ def main(gpu, args, wandb_logger):
         sampler=train_sampler,
     )
     if rank == 0:
-        test_dataset = TCGADataset(args, split='test')
+        test_dataset = TCGADataset(args, data_cv_split, split='test')
         test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers)
     else:
         test_loader = None
@@ -64,7 +64,7 @@ def main(gpu, args, wandb_logger):
     num_classes = train_dataset.num_classes
 
     # model init
-    model = CreateModel(backbone=args.backbone, num_classes=num_classes, hid_dim=args.hidden_dim, pretrained=args.pretrained)
+    model = CreateModel(backbone=args.backbone, image_size=args.image_size, num_classes=num_classes, hid_dim=args.hidden_dim, pretrained=args.pretrained)
     if args.reload:
         model_fp = os.path.join(
             args.checkpoints, "epoch_{}_.pth".format(args.epochs)

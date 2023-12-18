@@ -1,6 +1,6 @@
 import os
-import numpy as np
-import pandas as pd
+import torch
+from PIL import Image
 import torchvision.transforms as T
 from torch.utils.data.dataset import Dataset
 
@@ -11,7 +11,7 @@ class TCGADataset(Dataset):
         self.gene = data[split]['x_omic']
         self.split = split
         # map [-1, 0, 1, 2] to [0, 1, 2, 3]
-        self.grade = data['split']['g'] + 1
+        self.grade = data[split]['g'] + 1
         self.num_classes = len(set(self.grade))
         
         self.train_transform = T.Compose([
@@ -28,6 +28,9 @@ class TCGADataset(Dataset):
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ])
+
+    def __len__(self):
+        return len(self.grade)
         
     def __getitem__(self, index):
         img = Image.open(self.img[index]).convert('RGB')

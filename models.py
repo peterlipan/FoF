@@ -3,9 +3,9 @@ import torch.nn as nn
 
 
 class CreateModel(nn.Module):
-    def __init__(self, backbone, num_classes, hid_dim=256, pretrained=True, ema=False):
+    def __init__(self, backbone, image_size, num_classes, hid_dim=256, pretrained=True, ema=False):
         super(CreateModel, self).__init__()
-        encoder = getattr(torchvision.models, backbone)(pretrained=pretrained)
+        encoder = getattr(torchvision.models, backbone)(image_size=image_size,pretrained=pretrained)
         self.num_classes = num_classes
 
         in_features = encoder.heads.head.in_features

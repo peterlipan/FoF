@@ -1,27 +1,28 @@
 # distributed training
 nodes: 1
-gpus: 4
+gpus: 2
 nr: 0
 dataparallel: 0
 workers: 8
-visible_gpus: "0,1,2,3"
+visible_gpus: "6,7"
 
 # Paths
-data_path: "/home/r20user17/MCL/data/TCGA_GBMLGG/splits/gbmlgg15cv_all_st_0_0_0.pkl"
+data_path: "/home/r20user17/MCL/data/splits/gbmlgg15cv_all_st_0_0_0.pkl"
 checkpoints: "./checkpoints"
 
 # Dataset Options
 dataset: "TCGA"
 
 # Model options
-pretrained: True
+pretrained: False
 backbone: "vit_b_16"
 reload: False
 hidden_dim: 256
 
 # training options
 seed: 42
-batch_size: 128
-image_size: 512
+batch_size: 8
+image_size: 1024
 start_epoch: 0
 epochs: 100
+lr: 0.01
