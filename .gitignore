@@ -15,3 +15,6 @@ __MACOSX/
 
 # PyCharm
 **/.idea
+
+# dataset
+data/
