@@ -10,6 +10,7 @@ import torch.distributed as dist
 from torch.utils.data.distributed import DistributedSampler
 import torch.nn as nn
 from .metrics import compute_avg_metrics
+from .losses import GeneGuidance
 
 
 def train(dataloaders, model, optimizer, scheduler, args, logger):
@@ -19,7 +20,7 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
     model.train()
     cls_criterion = nn.CrossEntropyLoss()
     start = time.time()
-
+    gene_guidance = GeneGuidance(args.batch_size, args.world_size)
     cur_iter = 0
     for epoch in range(args.epochs):
         if isinstance(train_loader.sampler, DistributedSampler):
@@ -30,11 +31,13 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
 
             # classification loss
             cls_loss = cls_criterion(pred, grade)
-            # TODO: add regression loss
-            loss = cls_loss
+            gene_loss = args.lambda_gene * gene_guidance(features, gene)
+            loss = cls_loss + gene_loss
 
             if args.rank == 0:
                 train_loss = loss.item()
+                cls_loss = cls_loss.item()
+                gene_loss = gene_loss.item()
                 
             optimizer.zero_grad()
             loss.backward()
@@ -60,6 +63,8 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
                                             'MCC': test_mcc,
                                             'Kappa': test_kappa},
                                     'train': {'loss': train_loss,
+                                            'cls_loss': cls_loss,
+                                            'gene_loss': gene_loss,
                                                 'learning_rate': cur_lr}},)
                 
                     print('\rEpoch: [%2d/%2d] Iter [%4d/%4d] || Time: %4.4f sec || lr: %.6f || Loss: %.4f' % (
