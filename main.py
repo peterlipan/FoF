@@ -53,10 +53,12 @@ def main(gpu, args, wandb_logger):
         drop_last=True,
         num_workers=args.workers,
         sampler=train_sampler,
+        pin_memory=True,
     )
     if rank == 0:
         test_dataset = TCGADataset(args, data_cv_split, gene_list, split='test')
-        test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers)
+        test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False,
+        num_workers=args.workers, pin_memory=True)
     else:
         test_loader = None
 
@@ -72,9 +74,8 @@ def main(gpu, args, wandb_logger):
         )
         model.load_state_dict(torch.load(model_fp, map_location=args.device.type))
 
-    model = model.to(args.device)
+    model = model.cuda()
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
-    # TODO: implement scheduler
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     if args.dataparallel:
@@ -98,8 +99,6 @@ if __name__ == '__main__':
     parser.add_argument('--debug', action="store_true", help='debug mode(disable wandb)')
     args = parser.parse_args()
 
-    args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    args.num_gpus = torch.cuda.device_count()
     args.world_size = args.gpus * args.nodes
 
     # Master address for distributed data parallel
