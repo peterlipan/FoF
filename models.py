@@ -27,6 +27,6 @@ class SwinTransformer(SwinPreTrainedModel):
     def forward(self, x, token_mask=None):
         return_dict = self.config.use_return_dict
         outputs = self.swin(x, bool_masked_pos=token_mask, return_dict=return_dict)
-        pooled_outputs = outputs[1]
-        logits = self.classifier(pooled_outputs)
-        return logits
+        features = outputs[1]
+        logits = self.classifier(features)
+        return features, logits
