@@ -6,9 +6,12 @@ from torch.utils.data.dataset import Dataset
 
 
 class TCGADataset(Dataset):
-    def __init__(self, args, data, split='train'):
+    def __init__(self, args, data, gene_list, split='train'):
+        selected_genes = ['codeletion', 'idh mutation', 'EGFR', 'CDKN2A', 'CDKN2B']
+        # find the corresponding index of the selected genes
+        gene_idx = [gene_list.tolist().index(gene) for gene in selected_genes]
         self.img = data[split]['x_path']
-        self.gene = data[split]['x_omic']
+        self.gene = data[split]['x_omic'][:, gene_idx]
         self.split = split
         # map [-1, 0, 1, 2] to [0, 1, 2, 3]
         self.grade = data[split]['g'] + 1

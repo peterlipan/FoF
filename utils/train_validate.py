@@ -70,6 +70,8 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
                     print('\rEpoch: [%2d/%2d] Iter [%4d/%4d] || Time: %4.4f sec || lr: %.6f || Loss: %.4f' % (
                         epoch, args.epochs, i + 1, len(train_loader), time.time() - start,
                         cur_lr, loss.item()), end='', flush=True)
+            
+        scheduler.step()
 
 
 def validate(dataloader, model):

@@ -33,9 +33,10 @@ def main(gpu, args, wandb_logger):
     data_cv = pickle.load(open(args.data_path, 'rb'))
     # TODO: implement cross-validation
     data_cv_split = data_cv['cv_splits'][1]
+    gene_list = data_cv['data_pd'].columns[-80:]
 
     # training set
-    train_dataset = TCGADataset(args, data_cv_split, split='train')
+    train_dataset = TCGADataset(args, data_cv_split, gene_list, split='train')
 
     # set sampler for parallel training
     if args.world_size > 1:
@@ -54,7 +55,7 @@ def main(gpu, args, wandb_logger):
         sampler=train_sampler,
     )
     if rank == 0:
-        test_dataset = TCGADataset(args, data_cv_split, split='test')
+        test_dataset = TCGADataset(args, data_cv_split, gene_list, split='test')
         test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers)
     else:
         test_loader = None
@@ -72,10 +73,9 @@ def main(gpu, args, wandb_logger):
         model.load_state_dict(torch.load(model_fp, map_location=args.device.type))
 
     model = model.to(args.device)
-    optimizer = torch.optim.SGD(model.parameters(), lr=args.lr,
-                                momentum=0.9)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
     # TODO: implement scheduler
-    scheduler = None
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     if args.dataparallel:
         model = convert_model(model)
