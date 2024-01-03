@@ -4,7 +4,7 @@ import wandb
 import pickle
 import argparse
 import torch.distributed as dist
-from models import CreateModel
+from models import SwinTransformer
 from datasets import TCGADataset
 import torch.multiprocessing as mp
 from torch.nn.parallel import DataParallel
@@ -65,7 +65,7 @@ def main(gpu, args, wandb_logger):
     num_classes = train_dataset.num_classes
 
     # model init
-    model = CreateModel(backbone=args.backbone, image_size=args.image_size, num_classes=num_classes, hid_dim=args.hidden_dim, pretrained=args.pretrained)
+    model = SwinTransformer(image_size=args.image_size, num_classes=num_classes)
     if args.reload:
         model_fp = os.path.join(
             args.checkpoints, "epoch_{}_.pth".format(args.epochs)
@@ -80,8 +80,7 @@ def main(gpu, args, wandb_logger):
     if args.dataparallel:
         model = convert_model(model)
         model = DataParallel(model)
-        ema_model = convert_model(ema_model)
-        ema_model = DataLoader(ema_model)
+
     else:
         if args.world_size > 1:
             model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)

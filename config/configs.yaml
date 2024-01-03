@@ -15,9 +15,7 @@ dataset: "TCGA"
 
 # Model options
 pretrained: False
-backbone: "vit_b_16"
 reload: False
-hidden_dim: 256
 
 # training options
 seed: 42

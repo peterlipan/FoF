@@ -1,32 +1,32 @@
-import torchvision
 import torch.nn as nn
+from transformers import SwinModel, SwinConfig, SwinPreTrainedModel
 
 
-class CreateModel(nn.Module):
-    def __init__(self, backbone, image_size, num_classes, hid_dim=256, pretrained=True, ema=False):
-        super(CreateModel, self).__init__()
-        encoder = getattr(torchvision.models, backbone)(image_size=image_size,pretrained=pretrained)
+class SwinTransformer(SwinPreTrainedModel):
+    def __init__(self, image_size, num_classes, ema=False):
+        config = SwinConfig()
+        config.num_labels = num_classes
+        config.image_size = image_size
+        super(SwinTransformer, self).__init__(config)
+        self.config = config
         self.num_classes = num_classes
 
-        in_features = encoder.heads.head.in_features
-        # use MLP as the classification head
-        encoder.heads = nn.Sequential(
-            nn.Linear(in_features, hid_dim),
-            nn.Tanh(),
-        )
-        classifier = nn.Linear(hid_dim, num_classes)
+        self.swin = SwinModel(config, add_pooling_layer=True, use_mask_token=True)
+        # classifier head
+        self.classifier = nn.Linear(self.swin.num_features, config.num_labels)
+
+        # Initialize weights and apply final processing
+        self.post_init()
 
         if ema:
-            for param in encoder.parameters():
+            for param in self.swin.parameters():
                 param.detach_()
-            for param in classifier.parameters():
+            for param in self.classifier.parameters():
                 param.detach_()
 
-        self.encoder = encoder
-        self.classifier = classifier
-    
-    def forward(self, x):
-        features = self.encoder(x)
-        pred = self.classifier(features)
-        return features, pred
-
+    def forward(self, x, token_mask=None):
+        return_dict = self.config.use_return_dict
+        outputs = self.swin(x, bool_masked_pos=token_mask, return_dict=return_dict)
+        pooled_outputs = outputs[1]
+        logits = self.classifier(pooled_outputs)
+        return logits
