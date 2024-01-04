@@ -38,11 +38,12 @@ class GeneGuidance(nn.Module):
 
 
 class RegionContrastiveLoss(nn.Module):
-    def __init__(self, batch_size, temperature, world_size):
+    def __init__(self, batch_size, temperature, world_size, dataparallel):
         super(RegionContrastiveLoss, self).__init__()
         self.batch_size = batch_size
         self.temperature = temperature
         self.world_size = world_size
+        self.dataparallel = dataparallel
 
         self.mask = self.mask_correlated_samples(batch_size, world_size)
         self.criterion = nn.CrossEntropyLoss(reduction="sum")
@@ -74,6 +75,7 @@ class RegionContrastiveLoss(nn.Module):
         N = self.batch_size * self.world_size
 
         if self.world_size > 1:
+            anchor = torch.cat(GatherLayer.apply(anchor), dim=0)
             pos = torch.cat(GatherLayer.apply(pos), dim=0)
             neg = torch.cat(GatherLayer.apply(neg), dim=0)
         # z: [3N, D]

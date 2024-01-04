@@ -1,13 +1,13 @@
 # distributed training
 nodes: 1
-gpus: 1
+gpus: 4
 nr: 0
 dataparallel: 0
 workers: 8
-visible_gpus: "0,1,2"
+visible_gpus: "0,1,2,3"
 
 # Paths
-data_path: "/home/r20user17/MCL/data/splits/gbmlgg15cv_all_st_0_0_0.pkl"
+data_path: "./data/splits/gbmlgg15cv_all_st_0_0_0.pkl"
 checkpoints: "./checkpoints"
 
 # Dataset Options
@@ -19,9 +19,12 @@ reload: False
 
 # training options
 seed: 42
-batch_size: 1
-image_size: 1024
+batch_size: 5
+image_size: 512
 start_epoch: 0
 epochs: 100
-lr: 0.0001
+lr: 0.01
 lambda_gene: 50
+lambda_region: 1
+threshold: 0.2
+temperature: 0.5

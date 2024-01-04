@@ -12,6 +12,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 import numpy as np
 from torch.utils.data import DataLoader
 from utils import yaml_config_hook, convert_model, train
+import warnings
+warnings.filterwarnings('ignore')
 
 
 def main(gpu, args, wandb_logger):
@@ -22,7 +24,7 @@ def main(gpu, args, wandb_logger):
     args.rank = rank
     args.device = rank
 
-    if args.world_size > 1:
+    if args.world_size > 1 and not args.dataparallel:
         dist.init_process_group("nccl", rank=rank, world_size=args.world_size)
         torch.cuda.set_device(rank)
 
@@ -39,7 +41,7 @@ def main(gpu, args, wandb_logger):
     train_dataset = TCGADataset(args, data_cv_split, gene_list, split='train')
 
     # set sampler for parallel training
-    if args.world_size > 1:
+    if args.world_size > 1 and not args.dataparallel:
         train_sampler = torch.utils.data.distributed.DistributedSampler(
             train_dataset, num_replicas=args.world_size, rank=rank, shuffle=True
         )
@@ -80,12 +82,12 @@ def main(gpu, args, wandb_logger):
 
     if args.dataparallel:
         model = convert_model(model)
-        model = DataParallel(model)
+        model = DataParallel(model, device_ids=[int(x) for x in args.visible_gpus.split(",")])
 
     else:
         if args.world_size > 1:
             model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-            model = DDP(model, device_ids=[gpu])
+            model = DDP(model, device_ids=[gpu], find_unused_parameters=True, broadcast_buffers=False)
 
     train(loaders, model, optimizer, scheduler, args, wandb_logger)
 
@@ -103,6 +105,7 @@ if __name__ == '__main__':
 
     # Master address for distributed data parallel
     os.environ["CUDA_VISIBLE_DEVICES"] = args.visible_gpus
+    os.environ['TORCH_DISTRIBUTED_DEBUG'] = 'DETAIL'
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12345'
 
@@ -125,7 +128,7 @@ if __name__ == '__main__':
     else:
         wandb_logger = None
 
-    if args.world_size > 1:
+    if args.world_size > 1 and not args.dataparallel:
         print(
             f"Training with {args.world_size} GPUS, waiting until all processes join before starting training"
         )
