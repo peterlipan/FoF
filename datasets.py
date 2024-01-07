@@ -7,7 +7,9 @@ from torch.utils.data.dataset import Dataset
 
 class TCGADataset(Dataset):
     def __init__(self, args, data, gene_list, split='train'):
-        selected_genes = ['codeletion', 'idh mutation', 'EGFR', 'CDKN2A', 'CDKN2B']
+        # selected_genes = ['codeletion', 'idh mutation', 'EGFR', 'CDKN2A', 'CDKN2B', 'PTEN', 'MDM4', 'MYC', 'RB1', 'FGFR2', 'BRAF', '7p', '7q', '9p', '10q']
+        # selected by ANOVA test
+        selected_genes = ['10q', 'PTEN', 'EGFR', '10p', 'idh mutation', '7p', 'CARD11', 'FGFR2', '7q']
         # find the corresponding index of the selected genes
         gene_idx = [gene_list.tolist().index(gene) for gene in selected_genes]
         self.img = data[split]['x_path']

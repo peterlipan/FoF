@@ -31,10 +31,8 @@ class GeneGuidance(nn.Module):
         norm = torch.norm(gene_sim, 2, 1).view(-1, 1)
         gene_sim = gene_sim / norm
 
-        x = F.log_softmax(feature_sim, dim=1)
-        target = F.softmax(gene_sim, dim=1)
-        loss = self.criterion(x, target)
-        return loss
+        batch_loss = (feature_sim - gene_sim) ** 2 / N
+        return batch_loss
 
 
 class RegionContrastiveLoss(nn.Module):

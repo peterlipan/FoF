@@ -3,8 +3,8 @@ from transformers import SwinModel, SwinConfig, SwinPreTrainedModel
 
 
 class SwinTransformer(SwinPreTrainedModel):
-    def __init__(self, image_size, num_classes, ema=False):
-        config = SwinConfig()
+    def __init__(self, image_size, num_classes, ema=False, pretrained=""):
+        config = SwinConfig().from_pretrained(pretrained) if pretrained else SwinConfig()
         config.num_labels = num_classes
         config.image_size = image_size
         super(SwinTransformer, self).__init__(config)
@@ -12,6 +12,8 @@ class SwinTransformer(SwinPreTrainedModel):
         self.num_classes = num_classes
 
         self.swin = SwinModel(config, add_pooling_layer=True, use_mask_token=True)
+        if pretrained:
+            self.swin = SwinModel.from_pretrained(pretrained, config=config, add_pooling_layer=True, use_mask_token=True)
         # classifier head
         self.classifier = nn.Linear(self.swin.num_features, config.num_labels)
 

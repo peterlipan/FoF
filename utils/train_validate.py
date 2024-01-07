@@ -37,27 +37,32 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
         for i, (img, gene, grade) in enumerate(train_loader):
             img, gene, grade = img.cuda(non_blocking=True), gene.cuda(non_blocking=True), grade.cuda(non_blocking=True)
             
-            # Class activation map
-            cam = get_swin_cam(model, img, grade, smooth=True)
-            mask = cam2mask(cam, patch_size=patch_size, threshold=args.threshold)
+            if epoch > args.warmup_epochs:
+                # Class activation map
+                cam = get_swin_cam(model, img, grade, smooth=True)
+                mask = cam2mask(cam, patch_size=patch_size, threshold=args.threshold)
 
-            # global-local consistency
-            model.zero_grad()
-            features, pred = model(img)
-            pos_features, _ = model(img, token_mask=mask)
-            neg_features, _ = model(img, token_mask=~mask)
-            anchor_features, pos_features, neg_features = projector(features), projector(pos_features), projector(neg_features)
-            region_loss = args.lambda_region * global_local(anchor_features, pos_features, neg_features)
-            # classification loss
-            cls_loss = cls_criterion(pred, grade)
-            gene_loss = args.lambda_gene * (gene_guidance(anchor_features, gene) + gene_guidance(pos_features, gene)) 
-            loss = cls_loss + gene_loss + region_loss
+                # global-local consistency
+                model.zero_grad()
+                features, pred = model(img)
+                pos_features, _ = model(img, token_mask=mask)
+                neg_features, _ = model(img, token_mask=~mask)
+                anchor_contrast, pos_contrast, neg_contrast = projector(features), projector(pos_features), projector(neg_features)
+                region_loss = args.lambda_region * global_local(anchor_contrast, pos_contrast, neg_contrast)
+                # classification loss
+                cls_loss = cls_criterion(pred, grade)
+                gene_loss = args.lambda_gene * (gene_guidance(features, gene) + gene_guidance(pos_features, gene)) 
+                loss = cls_loss + gene_loss + region_loss
+            else:
+                features, pred = model(img)
+                cls_loss = cls_criterion(pred, grade)
+                loss = cls_loss
 
             if args.rank == 0:
                 train_loss = loss.item()
                 cls_loss_item = cls_loss.item()
-                gene_loss_item = gene_loss.item()
-                region_loss_item = region_loss.item()
+                gene_loss_item = gene_loss.item() if epoch > args.warmup_epochs else 0
+                region_loss_item = region_loss.item() if epoch > args.warmup_epochs else 0
 
             optimizer.zero_grad()
             loss.backward()

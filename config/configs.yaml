@@ -14,17 +14,18 @@ checkpoints: "./checkpoints"
 dataset: "TCGA"
 
 # Model options
-pretrained: False
+pretrained: "microsoft/swin-base-patch4-window7-224"
 reload: False
 
 # training options
 seed: 42
-batch_size: 5
-image_size: 512
+batch_size: 24
+image_size: 224
 start_epoch: 0
-epochs: 100
-lr: 0.01
-lambda_gene: 50
+epochs: 300
+warmup_epochs: -1
+lr: 0.0001
+lambda_gene: 100
 lambda_region: 1
-threshold: 0.2
+threshold: 0.5
 temperature: 0.5
