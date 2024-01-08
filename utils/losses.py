@@ -10,7 +10,6 @@ class GeneGuidance(nn.Module):
         super(GeneGuidance, self).__init__()
         self.batch_size = batch_size
         self.world_size = world_size
-        self.criterion = nn.KLDivLoss(reduction='batchmean')
     
     def forward(self, features, gene):
         N = self.batch_size * self.world_size
@@ -31,7 +30,7 @@ class GeneGuidance(nn.Module):
         norm = torch.norm(gene_sim, 2, 1).view(-1, 1)
         gene_sim = gene_sim / norm
 
-        batch_loss = (feature_sim - gene_sim) ** 2 / N
+        batch_loss = torch.mean((feature_sim - gene_sim) ** 2 / N)
         return batch_loss
 
 

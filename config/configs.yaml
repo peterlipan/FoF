@@ -22,10 +22,10 @@ seed: 42
 batch_size: 24
 image_size: 224
 start_epoch: 0
-epochs: 300
+epochs: 500
 warmup_epochs: -1
 lr: 0.0001
-lambda_gene: 100
+lambda_gene: 5000
 lambda_region: 1
 threshold: 0.5
 temperature: 0.5
