@@ -6,10 +6,15 @@ from torch.autograd import Variable
 
 
 class GeneGuidance(nn.Module):
-    def __init__(self, batch_size, world_size):
+    def __init__(self, batch_size, world_size, hidden_dim):
         super(GeneGuidance, self).__init__()
         self.batch_size = batch_size
         self.world_size = world_size
+        self.projector = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim, bias=False),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, 64, bias=False),
+        )
     
     def forward(self, features, gene):
         N = self.batch_size * self.world_size
@@ -19,6 +24,8 @@ class GeneGuidance(nn.Module):
             gene = torch.cat(GatherLayer.apply(gene), dim=0)
         # reshape as NxC
         features = features.view(N, -1)
+        # project to the contrast space
+        features = self.projector(features)
         gene = gene.view(N, -1)
 
         # sample-wise relationship, NxN
@@ -35,16 +42,20 @@ class GeneGuidance(nn.Module):
 
 
 class RegionContrastiveLoss(nn.Module):
-    def __init__(self, batch_size, temperature, world_size, dataparallel):
+    def __init__(self, batch_size, temperature, world_size, hidden_dim):
         super(RegionContrastiveLoss, self).__init__()
         self.batch_size = batch_size
         self.temperature = temperature
         self.world_size = world_size
-        self.dataparallel = dataparallel
 
         self.mask = self.mask_correlated_samples(batch_size, world_size)
         self.criterion = nn.CrossEntropyLoss(reduction="sum")
         self.similarity_f = nn.CosineSimilarity(dim=2)
+        self.projector = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim, bias=False),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, 64, bias=False),
+        )
 
     def mask_correlated_samples(self, batch_size, world_size):
         N = batch_size * world_size
@@ -61,6 +72,10 @@ class RegionContrastiveLoss(nn.Module):
         for i in range(N):
             mask[i, 2*N + i] = 1
             mask[2*N + i, i] = 1
+        # include the positive-naive region pairs as the positive pairs
+        for i in range(N):
+            mask[N + i, 2*N + i] = 1
+            mask[2*N + i, N + i] = 1
         return mask
 
     def forward(self, anchor, pos, neg):
@@ -75,6 +90,8 @@ class RegionContrastiveLoss(nn.Module):
             anchor = torch.cat(GatherLayer.apply(anchor), dim=0)
             pos = torch.cat(GatherLayer.apply(pos), dim=0)
             neg = torch.cat(GatherLayer.apply(neg), dim=0)
+        # project to the contrast space
+        anchor, pos, neg = self.projector(anchor), self.projector(pos), self.projector(neg)
         # z: [3N, D]
         z = torch.cat((anchor, pos, neg), dim=0)
         # sim: [3N, 3N]

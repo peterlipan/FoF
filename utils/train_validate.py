@@ -47,8 +47,7 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
                 features, pred = model(img)
                 pos_features, _ = model(img, token_mask=mask)
                 neg_features, _ = model(img, token_mask=~mask)
-                anchor_contrast, pos_contrast, neg_contrast = projector(features), projector(pos_features), projector(neg_features)
-                region_loss = args.lambda_region * global_local(anchor_contrast, pos_contrast, neg_contrast)
+                region_loss = args.lambda_region * global_local(features, pos_features, neg_features)
                 # classification loss
                 cls_loss = cls_criterion(pred, grade)
                 gene_loss = args.lambda_gene * (gene_guidance(features, gene) + gene_guidance(pos_features, gene)) 
