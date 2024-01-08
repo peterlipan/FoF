@@ -19,17 +19,12 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
     model.train()
     cls_criterion = nn.CrossEntropyLoss()
     start = time.time()
-    gene_guidance = GeneGuidance(args.batch_size, args.world_size)
-    global_local = RegionContrastiveLoss(args.batch_size, args.temperature, args.world_size, args.dataparallel)
+    
     cur_iter = 0
     hidden_size = model.module.config.hidden_size if isinstance(model, DataParallel) or isinstance(model, DDP) else model.config.hidden_size
     patch_size = model.module.config.patch_size if isinstance(model, DataParallel) or isinstance(model, DDP) else model.config.patch_size
-    projector = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size, bias=False),
-            nn.ReLU(),
-            nn.Linear(hidden_size, 64, bias=False),
-        )
-    projector = projector.cuda()
+    gene_guidance = GeneGuidance(args.batch_size, args.world_size, hidden_size)
+    global_local = RegionContrastiveLoss(args.batch_size, args.temperature, args.world_size, hidden_size)
     torch.autograd.set_detect_anomaly(True)
     for epoch in range(args.epochs):
         if isinstance(train_loader.sampler, DistributedSampler):

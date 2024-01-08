@@ -17,6 +17,7 @@ class GeneGuidance(nn.Module):
         )
     
     def forward(self, features, gene):
+        self.projector = self.projector.cuda(features.device)
         N = self.batch_size * self.world_size
         # gather data from all GPUs
         if self.world_size > 1:
@@ -85,7 +86,7 @@ class RegionContrastiveLoss(nn.Module):
         neg: negative region features
         """
         N = self.batch_size * self.world_size
-
+        self.projector = self.projector.cuda(anchor.device)
         if self.world_size > 1:
             anchor = torch.cat(GatherLayer.apply(anchor), dim=0)
             pos = torch.cat(GatherLayer.apply(pos), dim=0)
