@@ -4,7 +4,7 @@ gpus: 4
 nr: 0
 dataparallel: 0
 workers: 8
-visible_gpus: "4,5,6,7"
+visible_gpus: "0,1,2,3"
 
 # Paths
 data_path: "./data/splits/gbmlgg15cv_all_st_0_0_0.pkl"
@@ -14,17 +14,17 @@ checkpoints: "./checkpoints"
 dataset: "TCGA"
 
 # Model options
-pretrained: ""
+pretrained: "microsoft/swin-base-patch4-window7-224"
 reload: False
 
 # training options
 seed: 42
-batch_size: 3
-image_size: 1024
+batch_size: 24
+image_size: 224
 start_epoch: 0
 epochs: 500
 warmup_epochs: -1
-lr: 0.001
+lr: 0.0001
 lambda_gene: 5000
 lambda_region: 1
 threshold: 0.5

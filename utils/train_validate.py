@@ -25,7 +25,6 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
     patch_size = model.module.config.patch_size if isinstance(model, DataParallel) or isinstance(model, DDP) else model.config.patch_size
     gene_guidance = GeneGuidance(args.batch_size, args.world_size, hidden_size)
     global_local = RegionContrastiveLoss(args.batch_size, args.temperature, args.world_size, hidden_size)
-    torch.autograd.set_detect_anomaly(True)
     for epoch in range(args.epochs):
         if isinstance(train_loader.sampler, DistributedSampler):
             train_loader.sampler.set_epoch(epoch)
