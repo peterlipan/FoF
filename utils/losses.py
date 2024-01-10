@@ -10,14 +10,8 @@ class GeneGuidance(nn.Module):
         super(GeneGuidance, self).__init__()
         self.batch_size = batch_size
         self.world_size = world_size
-        self.projector = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim, bias=False),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, 64, bias=False),
-        )
     
     def forward(self, features, gene):
-        self.projector = self.projector.cuda(features.device)
         N = self.batch_size * self.world_size
         # gather data from all GPUs
         if self.world_size > 1:
@@ -25,8 +19,6 @@ class GeneGuidance(nn.Module):
             gene = torch.cat(GatherLayer.apply(gene), dim=0)
         # reshape as NxC
         features = features.view(N, -1)
-        # project to the contrast space
-        features = self.projector(features)
         gene = gene.view(N, -1)
 
         # sample-wise relationship, NxN

@@ -20,16 +20,16 @@ class TCGADataset(Dataset):
         self.num_classes = len(set(self.grade))
         
         self.train_transform = T.Compose([
+            T.Resize(args.image_size),
             T.RandomHorizontalFlip(.5),
             T.RandomVerticalFlip(.5),
-            T.RandomCrop(args.image_size),
             T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.05, hue=0.01),
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ])
         
         self.test_transform = T.Compose([
-            T.CenterCrop(args.image_size),
+            T.Resize(args.image_size),
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ])
