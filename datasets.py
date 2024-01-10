@@ -9,15 +9,16 @@ class TCGADataset(Dataset):
     def __init__(self, args, data, gene_list, split='train'):
         # selected_genes = ['codeletion', 'idh mutation', 'EGFR', 'CDKN2A', 'CDKN2B', 'PTEN', 'MDM4', 'MYC', 'RB1', 'FGFR2', 'BRAF', '7p', '7q', '9p', '10q']
         # selected by ANOVA test
-        selected_genes = ['10q', 'PTEN', 'EGFR', '10p', 'idh mutation', '7p', 'CARD11', 'FGFR2', '7q']
+        selected_genes = ['PTEN', '10q', 'EGFR', '10p', '7p', 'idh mutation', 'CARD11', '7q', 'FGFR2', 'CREB3L2']
         # find the corresponding index of the selected genes
         gene_idx = [gene_list.tolist().index(gene) for gene in selected_genes]
         self.img = data[split]['x_path']
         self.gene = data[split]['x_omic'][:, gene_idx]
         self.split = split
-        # map [-1, 0, 1, 2] to [0, 1, 2, 3]
-        self.grade = data[split]['g'] + 1
-        self.num_classes = len(set(self.grade))
+        # map [0, 1, 2] to [1, 2, 3]
+        self.grade = data[split]['grade'] + 1
+        # reserve a palace for grade 0 (or normal)
+        self.num_classes = len(set(self.grade)) + 1
         
         self.train_transform = T.Compose([
             T.Resize(args.image_size),

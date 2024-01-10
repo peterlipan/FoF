@@ -25,37 +25,34 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
     patch_size = model.module.config.patch_size if isinstance(model, DataParallel) or isinstance(model, DDP) else model.config.patch_size
     gene_guidance = GeneGuidance(args.batch_size, args.world_size, hidden_size)
     global_local = RegionContrastiveLoss(args.batch_size, args.temperature, args.world_size, hidden_size)
+    # label the negative regions as grade 0
+    neg_label = torch.zeros(args.batch_size, dtype=torch.long, requires_grad=False).cuda()
     for epoch in range(args.epochs):
         if isinstance(train_loader.sampler, DistributedSampler):
             train_loader.sampler.set_epoch(epoch)
         for i, (img, gene, grade) in enumerate(train_loader):
             img, gene, grade = img.cuda(non_blocking=True), gene.cuda(non_blocking=True), grade.cuda(non_blocking=True)
             
-            if epoch > args.warmup_epochs:
-                # Class activation map
-                cam = get_swin_cam(model, img, grade, smooth=True)
-                mask = cam2mask(cam, patch_size=patch_size, threshold=args.threshold)
+            # Class activation map
+            cam = get_swin_cam(model, img, grade, smooth=True)
+            mask = cam2mask(cam, patch_size=patch_size, threshold=args.threshold)
 
-                # global-local consistency
-                model.zero_grad()
-                features, pred = model(img)
-                pos_features, _ = model(img, token_mask=mask)
-                neg_features, _ = model(img, token_mask=~mask)
-                region_loss = args.lambda_region * global_local(features, pos_features, neg_features)
-                # classification loss
-                cls_loss = cls_criterion(pred, grade)
-                gene_loss = args.lambda_gene * (gene_guidance(features, gene) + gene_guidance(pos_features, gene)) 
-                loss = cls_loss + gene_loss + region_loss
-            else:
-                features, pred = model(img)
-                cls_loss = cls_criterion(pred, grade)
-                loss = cls_loss
+            # global-local consistency
+            model.zero_grad()
+            features, pred = model(img)
+            pos_features, pos_pred = model(img, token_mask=mask)
+            neg_features, neg_pred = model(img, token_mask=~mask)
+            region_loss = args.lambda_region * global_local(features, pos_features, neg_features)
+            # classification loss
+            cls_loss = (cls_criterion(pos_pred, grade) + cls_criterion(neg_pred, neg_label) + cls_criterion(pred, grade)) / 3
+            gene_loss = args.lambda_gene * (gene_guidance(pos_features, gene) + gene_guidance(features, gene)) / 2
+            loss = cls_loss + gene_loss + region_loss
 
             if args.rank == 0:
                 train_loss = loss.item()
                 cls_loss_item = cls_loss.item()
-                gene_loss_item = gene_loss.item() if epoch > args.warmup_epochs else 0
-                region_loss_item = region_loss.item() if epoch > args.warmup_epochs else 0
+                gene_loss_item = gene_loss.item()
+                region_loss_item = region_loss.item()
 
             optimizer.zero_grad()
             loss.backward()

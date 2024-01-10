@@ -34,7 +34,7 @@ def main(gpu, args, wandb_logger):
     # load data file
     data_cv = pickle.load(open(args.data_path, 'rb'))
     # TODO: implement cross-validation
-    data_cv_split = data_cv['cv_splits'][1]
+    data_cv_split = data_cv['splits'][0]
     gene_list = data_cv['data_pd'].columns[-80:]
 
     # training set
@@ -69,7 +69,7 @@ def main(gpu, args, wandb_logger):
     num_classes = train_dataset.num_classes
 
     # model init
-    model = SwinTransformer(image_size=args.image_size, num_classes=num_classes)
+    model = SwinTransformer(image_size=args.image_size, num_classes=num_classes, ema=False, pretrained=args.pretrained)
     if args.reload:
         model_fp = os.path.join(
             args.checkpoints, "epoch_{}_.pth".format(args.epochs)
