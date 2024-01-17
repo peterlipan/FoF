@@ -1,5 +1,7 @@
 import torch
+import wandb
 import time
+import numpy as np
 import torch.backends.cudnn as cudnn
 import torch.nn.functional as F
 import torch.distributed as dist
@@ -10,6 +12,7 @@ import torch.nn as nn
 from .metrics import compute_avg_metrics
 from .losses import GeneGuidance, RegionContrastiveLoss
 from .cam_helper import get_swin_cam, cam2mask
+from pytorch_grad_cam.utils.image import show_cam_on_image
 
 
 def train(dataloaders, model, optimizer, scheduler, args, logger):
@@ -26,7 +29,6 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
     gene_guidance = GeneGuidance(args.batch_size, args.world_size, hidden_size)
     global_local = RegionContrastiveLoss(args.batch_size, args.temperature, args.world_size, hidden_size)
     # label the negative regions as grade 0
-    neg_label = torch.zeros(args.batch_size, dtype=torch.long, requires_grad=False).cuda()
     for epoch in range(args.epochs):
         if isinstance(train_loader.sampler, DistributedSampler):
             train_loader.sampler.set_epoch(epoch)
@@ -44,7 +46,7 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
             neg_features, neg_pred = model(img, token_mask=~mask)
             region_loss = args.lambda_region * global_local(features, pos_features, neg_features)
             # classification loss
-            cls_loss = (cls_criterion(pos_pred, grade) + cls_criterion(neg_pred, neg_label) + cls_criterion(pred, grade)) / 3
+            cls_loss = (cls_criterion(pos_pred, grade) + cls_criterion(pred, grade)) / 2
             gene_loss = args.lambda_gene * (gene_guidance(pos_features, gene) + gene_guidance(features, gene)) / 2
             loss = cls_loss + gene_loss + region_loss
 
@@ -64,6 +66,14 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
 
             cur_iter += 1
             if args.rank == 0:
+                if cur_iter % 10 == 0 and logger is not None:
+                    # pick 3 images from a batch
+                    wandb_imgs = img.permute(0,2,3,1).detach().cpu().numpy()[:5]
+                    wandb_imgs = [(item - np.min(item)) / np.ptp(item) for item in wandb_imgs]
+                    wandb_cams = cam.detach().cpu().numpy()[:5]
+                    img_cam = [show_cam_on_image(img, cam, use_rgb=True) for img, cam in zip(wandb_imgs, wandb_cams)]
+                    logger.log({'Image with CAM': [wandb.Image(item) for item in img_cam],
+                    'Original Image': [wandb.Image(item) for item in wandb_imgs]})
                 if cur_iter % 10 == 0:
                     cur_lr = optimizer.param_groups[0]['lr']
                     test_acc, test_f1, test_auc, test_bac, test_sens, test_spec, test_prec, test_mcc, test_kappa = validate(
@@ -107,5 +117,5 @@ def validate(dataloader, model):
             predictions = torch.cat((predictions, pred))
 
         acc, f1, auc, bac, sens, spec, prec, mcc, kappa = compute_avg_metrics(ground_truth, predictions)
-        model.train(training)
-        return acc, f1, auc, bac, sens, spec, prec, mcc, kappa
+    model.train(training)
+    return acc, f1, auc, bac, sens, spec, prec, mcc, kappa
