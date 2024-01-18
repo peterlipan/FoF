@@ -1,3 +1,4 @@
+import cv2
 import torch
 import wandb
 import time
@@ -28,6 +29,8 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
     patch_size = model.module.config.patch_size if isinstance(model, DataParallel) or isinstance(model, DDP) else model.config.patch_size
     gene_guidance = GeneGuidance(args.batch_size, args.world_size, hidden_size)
     global_local = RegionContrastiveLoss(args.batch_size, args.temperature, args.world_size, hidden_size)
+    neg_grade = torch.zeros(args.batch_size, requires_grad=False).long().cuda()
+    neg_gene = torch.zeros(args.batch_size, len(args.gene), requires_grad=False).cuda()
     # label the negative regions as grade 0
     for epoch in range(args.epochs):
         if isinstance(train_loader.sampler, DistributedSampler):
@@ -41,13 +44,14 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
 
             # global-local consistency
             model.zero_grad()
-            features, pred = model(img)
-            pos_features, pos_pred = model(img, token_mask=mask)
-            neg_features, neg_pred = model(img, token_mask=~mask)
+            features, pred = model(img, global_process=True)
+            pos_features, pos_pred = model(img, token_mask=mask, global_process=False)
+            neg_features, neg_pred = model(img, token_mask=~mask, global_process=False)
             region_loss = args.lambda_region * global_local(features, pos_features, neg_features)
             # classification loss
-            cls_loss = (cls_criterion(pos_pred, grade) + cls_criterion(pred, grade)) / 2
-            gene_loss = args.lambda_gene * (gene_guidance(pos_features, gene) + gene_guidance(features, gene)) / 2
+            # global grade: [0, 2]; local grade: [0, 3] where 0 is the dummy/normal class
+            cls_loss = (cls_criterion(pos_pred, grade) + cls_criterion(pred, grade + 1) + cls_criterion(neg_pred, neg_grade)) / 3
+            gene_loss = args.lambda_gene * (gene_guidance(pos_features, gene) + gene_guidance(features, gene) + gene_guidance(neg_features, neg_gene)) / 3
             loss = cls_loss + gene_loss + region_loss
 
             if args.rank == 0:
@@ -66,11 +70,14 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
 
             cur_iter += 1
             if args.rank == 0:
-                if cur_iter % 10 == 0 and logger is not None:
+                if cur_iter % 50 == 0 and logger is not None:
                     # pick 3 images from a batch
                     wandb_imgs = img.permute(0,2,3,1).detach().cpu().numpy()[:5]
                     wandb_imgs = [(item - np.min(item)) / np.ptp(item) for item in wandb_imgs]
                     wandb_cams = cam.detach().cpu().numpy()[:5]
+                    # resize the images and cams to 224x224
+                    wandb_imgs = [cv2.resize(item, (224, 224)) for item in wandb_imgs]
+                    wandb_cams = [cv2.resize(item, (224, 224)) for item in wandb_cams]
                     img_cam = [show_cam_on_image(img, cam, use_rgb=True) for img, cam in zip(wandb_imgs, wandb_cams)]
                     logger.log({'Image with CAM': [wandb.Image(item) for item in img_cam],
                     'Original Image': [wandb.Image(item) for item in wandb_imgs]})

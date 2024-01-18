@@ -14,13 +14,15 @@ checkpoints: "./checkpoints"
 dataset: "TCGA"
 
 # Model options
-pretrained: "microsoft/swin-tiny-patch4-window7-224"
+pretrained: ""
 reload: False
+ema: True
+gene: ['PTEN', '10q', 'EGFR', '10p', '7p', 'idh mutation', 'CARD11', '7q', 'FGFR2', 'CREB3L2']
 
 # training options
 seed: 42
 batch_size: 28
-image_size: 224
+image_size: 1024
 start_epoch: 0
 epochs: 100
 ema_decay: 0.999

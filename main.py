@@ -69,7 +69,7 @@ def main(gpu, args, wandb_logger):
     num_classes = train_dataset.num_classes
 
     # model init
-    model = SwinTransformer(image_size=args.image_size, num_classes=num_classes, ema=False, pretrained=args.pretrained)
+    model = SwinTransformer(image_size=args.image_size, num_classes=num_classes, ema=args.ema, pretrained=args.pretrained, ema_decay=args.ema_decay)
     if args.reload:
         model_fp = os.path.join(
             args.checkpoints, "epoch_{}_.pth".format(args.epochs)
@@ -77,7 +77,11 @@ def main(gpu, args, wandb_logger):
         model.load_state_dict(torch.load(model_fp, map_location=args.device.type))
 
     model = model.cuda()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
+    if args.ema:
+        optim_params = [model.local_encoder.parameters(), model.global_classifier.parameters(), model.local_classifier.parameters()]
+    else:
+        optim_params = model.parameters()
+    optimizer = torch.optim.AdamW(optim_params, lr=args.lr)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     if args.dataparallel:

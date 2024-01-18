@@ -234,17 +234,19 @@ class MyGradCAM(MyBaseCAM):
         return np.mean(grads, axis=(2, 3))
 
 
-class HuggingfaceToTensorModelWrapper(torch.nn.Module):
+class HuggingfaceToTensorModelWrapper(nn.Module):
     def __init__(self, model):
         super(HuggingfaceToTensorModelWrapper, self).__init__()
         self.model = model
 
     def forward(self, x):
-        features, logits = self.model(x)
+        features, logits = self.model(x, global_process=True)
         return logits
 
 
 def swinT_reshape_transform_huggingface(tensor, width, height):
+    # reshape the output of the target layer to n, c, h, w
+    # in the case of swinT, the output of the layernorm is n, sequence_length, c
     result = tensor.reshape(tensor.size(0),
                             height,
                             width,
@@ -257,6 +259,7 @@ def get_swin_cam(model, images, labels, smooth=True):
     training = model.training
     model.eval()
     target_layer = model.module.swin.layernorm if isinstance(model, DataParallel) or isinstance(model, DDP) else model.swin.layernorm
+    window_size = model.module.config.window_size if isinstance(model, DataParallel) or isinstance(model, DDP) else model.config.window_size
     reshape_transform = partial(swinT_reshape_transform_huggingface,
                         width=images.shape[3]//32,
                         height=images.shape[2]//32)
