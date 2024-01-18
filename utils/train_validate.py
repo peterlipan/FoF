@@ -11,7 +11,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data.distributed import DistributedSampler
 import torch.nn as nn
 from .metrics import compute_avg_metrics
-from .losses import GeneGuidance, RegionContrastiveLoss
+from .losses import GeneGuidance, RegionContrastiveLoss, MultiHeadContrastiveLoss
 from .cam_helper import get_swin_cam, cam2mask
 from pytorch_grad_cam.utils.image import show_cam_on_image
 
@@ -35,17 +35,18 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
     
     cur_iter = 0
     hidden_size = global_model.module.config.hidden_size if isinstance(global_model, DataParallel) or isinstance(global_model, DDP) else global_model.config.hidden_size
-    gene_guidance = GeneGuidance(args.batch_size, args.world_size, hidden_size)
+    float_gene_guidance = GeneGuidance(args.batch_size, args.world_size)
+    discrete_gene_guidance = MultiHeadContrastiveLoss(args.batch_size, args.world_size, hidden_size, args.discrete_gene)
     global_local = RegionContrastiveLoss(args.batch_size, args.temperature, args.world_size, hidden_size)
     neg_grade = torch.zeros(args.batch_size, requires_grad=False).long().cuda()
-    neg_gene = torch.zeros(args.batch_size, len(args.gene), requires_grad=False).cuda()
     # label the negative regions as grade 0
     for epoch in range(args.epochs):
         if isinstance(train_loader.sampler, DistributedSampler):
             train_loader.sampler.set_epoch(epoch)
-        for i, (img, gene, grade) in enumerate(train_loader):
-            img, gene, grade = img.cuda(non_blocking=True), gene.cuda(non_blocking=True), grade.cuda(non_blocking=True)
-            
+        for i, (img, dis_gene, float_gene, grade) in enumerate(train_loader):
+            img, dis_gene, float_gene, grade = img.cuda(non_blocking=True), dis_gene.cuda(non_blocking=True), \
+                                               float_gene.cuda(non_blocking=True), grade.cuda(non_blocking=True)
+
             # Class activation map
             cam = get_swin_cam(global_model, img, grade, smooth=True)
             mask = cam2mask(cam, patch_size=args.patch_size, threshold=args.threshold)
@@ -60,16 +61,18 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             # global grade: [0, 2]; local grade: [0, 3] where 0 is the dummy/normal class
             cls_loss = (cls_criterion(pos_pred, grade + 1) + cls_criterion(pred, grade) + cls_criterion(neg_pred, neg_grade)) / 3
         
-            all_features = torch.cat((pos_features, features), dim=0)
-            all_gene = torch.cat((gene, gene), dim=0)
-            gene_loss = args.lambda_gene * gene_guidance(all_features, all_gene)
+            global_pos_features = torch.cat((pos_features, features), dim=0)
+            global_pos_gene = torch.cat((float_gene, float_gene), dim=0)
+            dis_gene_loss = args.lambda_dis_gene * discrete_gene_guidance(features, pos_features, neg_features, dis_gene)
+            float_gene_loss = args.lambda_float_gene * float_gene_guidance(global_pos_features, global_pos_gene)
 
-            loss = cls_loss + gene_loss + region_loss
+            loss = cls_loss + dis_gene_loss + float_gene_loss + region_loss
 
             if args.rank == 0:
                 train_loss = loss.item()
                 cls_loss_item = cls_loss.item()
-                gene_loss_item = gene_loss.item()
+                float_gene_loss_item = float_gene_loss.item()
+                dis_gene_loss_item = dis_gene_loss.item()
                 region_loss_item = region_loss.item()
 
             optimizer.zero_grad()
@@ -111,7 +114,8 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                                              'Kappa': test_kappa},
                                     'train': {'loss': train_loss,
                                               'cls_loss': cls_loss_item,
-                                              'gene_loss': gene_loss_item,
+                                              'float_gene_loss': float_gene_loss_item,
+                                                'dis_gene_loss': dis_gene_loss_item,
                                               'region_loss': region_loss_item,
                                               'learning_rate': cur_lr}}, )
 
