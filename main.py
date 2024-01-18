@@ -78,7 +78,8 @@ def main(gpu, args, wandb_logger):
 
     model = model.cuda()
     if args.ema:
-        optim_params = [model.local_encoder.parameters(), model.global_classifier.parameters(), model.local_classifier.parameters()]
+        optim_params = [{'params': model.local_encoder.parameters()}, {'params': model.global_classifier.parameters()},
+                        {'params': model.local_classifier.parameters()}]
     else:
         optim_params = model.parameters()
     optimizer = torch.optim.AdamW(optim_params, lr=args.lr)

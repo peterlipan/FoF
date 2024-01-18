@@ -29,16 +29,16 @@ class SwinTransformer(SwinPreTrainedModel):
                 self.local_encoder = SwinModel(config, add_pooling_layer=True, use_mask_token=True)
             self.global_classifier = nn.Linear(self.global_encoder.num_features, config.num_labels)
             # Add a dummy class for the local classifier
-            self.local_calssifier = nn.Linear(self.local_encoder.num_features, config.num_labels + 1)        
+            self.local_classifier = nn.Linear(self.local_encoder.num_features, config.num_labels + 1)        
 
         # Initialize weights and apply final processing
         self.post_init()
 
     def update_ema_variables(self, step):
-    # Use the true average until the exponential average is more correct
-    alpha = min(1 - 1 / (step + 1), self.ema_decay)
-    for ema_param, param in zip(self.global_encoder.parameters(), self.local_encoder.parameters()):
-        ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
+        # Use the true average until the exponential average is more correct
+        alpha = min(1 - 1 / (step + 1), self.ema_decay)
+        for ema_param, param in zip(self.global_encoder.parameters(), self.local_encoder.parameters()):
+            ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
 
     def forward(self, x, token_mask=None, global_process=True):
         return_dict = self.config.use_return_dict

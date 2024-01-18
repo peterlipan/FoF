@@ -105,6 +105,9 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
                         epoch, args.epochs, i + 1, len(train_loader), time.time() - start,
                         cur_lr, loss.item()), end='', flush=True)
 
+        # update the ema model
+        if args.ema:
+            model.update_ema_variables(cur_iter)
         scheduler.step()
 
 

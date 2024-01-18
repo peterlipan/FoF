@@ -21,7 +21,7 @@ gene: ['PTEN', '10q', 'EGFR', '10p', '7p', 'idh mutation', 'CARD11', '7q', 'FGFR
 
 # training options
 seed: 42
-batch_size: 28
+batch_size: 2
 image_size: 1024
 start_epoch: 0
 epochs: 100

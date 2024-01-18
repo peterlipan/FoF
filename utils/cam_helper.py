@@ -258,7 +258,11 @@ def swinT_reshape_transform_huggingface(tensor, width, height):
 def get_swin_cam(model, images, labels, smooth=True):
     training = model.training
     model.eval()
-    target_layer = model.module.swin.layernorm if isinstance(model, DataParallel) or isinstance(model, DDP) else model.swin.layernorm
+    ema = model.module.ema if isinstance(model, DataParallel) or isinstance(model, DDP) else model.ema
+    if ema:
+        target_layer = model.module.global_encoder.layernorm if isinstance(model, DataParallel) or isinstance(model, DDP) else model.global_encoder.layernorm
+    else:
+        target_layer = model.module.swin.layernorm if isinstance(model, DataParallel) or isinstance(model, DDP) else model.swin.layernorm
     window_size = model.module.config.window_size if isinstance(model, DataParallel) or isinstance(model, DDP) else model.config.window_size
     reshape_transform = partial(swinT_reshape_transform_huggingface,
                         width=images.shape[3]//32,
