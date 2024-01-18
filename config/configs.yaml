@@ -18,10 +18,12 @@ pretrained: ""
 reload: False
 ema: True
 gene: ['PTEN', '10q', 'EGFR', '10p', '7p', 'idh mutation', 'CARD11', '7q', 'FGFR2', 'CREB3L2']
+patch_size: 16
+window_size: 7
 
 # training options
 seed: 42
-batch_size: 2
+batch_size: 1
 image_size: 1024
 start_epoch: 0
 epochs: 100

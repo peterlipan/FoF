@@ -3,10 +3,12 @@ from transformers import SwinModel, SwinConfig, SwinPreTrainedModel
 
 
 class SwinTransformer(SwinPreTrainedModel):
-    def __init__(self, image_size, num_classes, ema=False, pretrained="", ema_decay=0.999):
+    def __init__(self, image_size, num_classes, ema=False, pretrained="", ema_decay=0.999, patch_size=4, window_size=7):
         config = SwinConfig().from_pretrained(pretrained) if pretrained else SwinConfig()
         config.num_labels = num_classes
         config.image_size = image_size
+        config.patch_size = patch_size
+        config.window_size = window_size
         super(SwinTransformer, self).__init__(config)
         self.config = config
         self.num_classes = num_classes
