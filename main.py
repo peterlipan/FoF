@@ -69,7 +69,9 @@ def main(gpu, args, wandb_logger):
     num_classes = train_dataset.num_classes
 
     # model init
-    model = SwinTransformer(image_size=args.image_size, num_classes=num_classes, ema=args.ema, pretrained=args.pretrained, ema_decay=args.ema_decay)
+    model = SwinTransformer(image_size=args.image_size, num_classes=num_classes, 
+                            ema=args.ema, pretrained=args.pretrained, ema_decay=args.ema_decay,
+                            patch_size=args.patch_size, window_size=args.window_size,)
     if args.reload:
         model_fp = os.path.join(
             args.checkpoints, "epoch_{}_.pth".format(args.epochs)
