@@ -75,6 +75,8 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            # update the ema model
+            update_ema_variables(global_model, local_model, args.ema_decay, cur_iter)
 
             if dist.is_available() and dist.is_initialized():
                 loss = loss.data.clone()
@@ -117,8 +119,6 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                         epoch, args.epochs, i + 1, len(train_loader), time.time() - start,
                         cur_lr, loss.item()), end='', flush=True)
 
-        # update the ema model
-        update_ema_variables(global_model, local_model, args.ema_decay, cur_iter)
         scheduler.step()
 
 
