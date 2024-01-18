@@ -113,7 +113,7 @@ class MultiHeadContrastiveLoss(nn.Module):
             nn.Linear(hidden_dim, 64, bias=False),
             nn.ReLU(),
         ) for _ in gene_list]
-        self.neg_labels = torch.zeros(batch_size * world_size // 2, requires_grad=False).long().cuda()
+        self.neg_labels = torch.zeros((batch_size * world_size // 2, len(gene_list)), requires_grad=False).long().cuda()
         self.criteria = SupConLoss()
 
     def forward(self, global_features, pos_features, neg_features, labels):
@@ -135,7 +135,7 @@ class MultiHeadContrastiveLoss(nn.Module):
         global_features = global_features.view(N, -1)
         pos_features = pos_features.view(N, -1)
         neg_features = neg_features.view(N, -1)
-        labels = labels.view(N)
+        labels = labels.view(N, -1)
 
         # construct different views
         view1 = torch.cat((global_features, neg_features[:N//2]))
@@ -148,7 +148,7 @@ class MultiHeadContrastiveLoss(nn.Module):
             # project to the contrast space
             proj_features = projector(features)
             # compute the contrastive loss
-            loss += self.criteria(proj_features, labels)
+            loss += self.criteria(proj_features, labels[:, i])
         loss /= len(self.gene_list)
         return loss
 

@@ -36,7 +36,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
     cur_iter = 0
     hidden_size = global_model.module.config.hidden_size if isinstance(global_model, DataParallel) or isinstance(global_model, DDP) else global_model.config.hidden_size
     float_gene_guidance = GeneGuidance(args.batch_size, args.world_size)
-    discrete_gene_guidance = MultiHeadContrastiveLoss(args.batch_size, args.world_size, hidden_size, args.discrete_gene)
+    discrete_gene_guidance = MultiHeadContrastiveLoss(args.batch_size, args.world_size, hidden_size, args.dis_gene)
     global_local = RegionContrastiveLoss(args.batch_size, args.temperature, args.world_size, hidden_size)
     neg_grade = torch.zeros(args.batch_size, requires_grad=False).long().cuda()
     # label the negative regions as grade 0
@@ -65,8 +65,10 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             global_pos_gene = torch.cat((float_gene, float_gene), dim=0)
             dis_gene_loss = args.lambda_dis_gene * discrete_gene_guidance(features, pos_features, neg_features, dis_gene)
             float_gene_loss = args.lambda_float_gene * float_gene_guidance(global_pos_features, global_pos_gene)
-
-            loss = cls_loss + dis_gene_loss + float_gene_loss + region_loss
+            
+            loss = cls_loss
+            if epoch >= args.warmup:
+                loss += dis_gene_loss + float_gene_loss + region_loss
 
             if args.rank == 0:
                 train_loss = loss.item()
@@ -134,8 +136,8 @@ def validate(dataloader, model):
     predictions = torch.Tensor().cuda()
 
     with torch.no_grad():
-        for img, gene, grade in dataloader:
-            img, gene, grade = img.cuda(non_blocking=True), gene.cuda(non_blocking=True), grade.cuda(non_blocking=True)
+        for img, _, _, grade in dataloader:
+            img, grade = img.cuda(non_blocking=True), grade.cuda(non_blocking=True)
             _, pred = model(img)
             pred = F.softmax(pred, dim=1)
             ground_truth = torch.cat((ground_truth, grade))

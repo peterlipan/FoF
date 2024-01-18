@@ -15,9 +15,8 @@ dataset: "TCGA"
 
 # Model options
 pretrained: ""
-gene: ['PTEN', '10q', 'EGFR', '10p', '7p', 'idh mutation', 'CARD11', '7q', 'FGFR2', 'CREB3L2']
-discrete_gene: ['idh mutation', 'codeletion', 'PTEN', 'EGFR', 'CARD11', 'FGFR2']
-float_gene: ['10q', '10p', '7p', '7q']
+dis_gene: ['idh mutation', 'codeletion', 'PTEN', 'EGFR', 'CARD11', 'FGFR2']
+float_gene: ['10q', '10p', '7p', '7q', '20p', '20q']
 patch_size: 16
 window_size: 7
 
@@ -25,12 +24,12 @@ window_size: 7
 seed: 42
 batch_size: 16
 image_size: 1024
-start_epoch: 0
+warmup: 10
 epochs: 100
 ema_decay: 0.999
 lr: 0.0008
 lambda_float_gene: 500
-lambda_discrete_gene: 0.2
+lambda_dis_gene: 0.02
 lambda_region: 0.2
 threshold: 0.5
 temperature: 0.5

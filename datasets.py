@@ -9,11 +9,14 @@ class TCGADataset(Dataset):
     def __init__(self, args, data, gene_list, split='train'):
         # selected_genes = ['codeletion', 'idh mutation', 'EGFR', 'CDKN2A', 'CDKN2B', 'PTEN', 'MDM4', 'MYC', 'RB1', 'FGFR2', 'BRAF', '7p', '7q', '9p', '10q']
         # selected by ANOVA test
-        selected_genes = args.gene
+        self.dis_gene = args.dis_gene
+        self.float_gene = args.float_gene
         # find the corresponding index of the selected genes
-        gene_idx = [gene_list.tolist().index(gene) for gene in selected_genes]
+        dis_gene_idx = [gene_list.tolist().index(gene) for gene in self.dis_gene]
+        float_gene_idx = [gene_list.tolist().index(gene) for gene in self.float_gene]
         self.img = data[split]['x_path']
-        self.gene = data[split]['x_omic'][:, gene_idx]
+        self.dis_gene = data[split]['x_omic'][:, dis_gene_idx]
+        self.float_gene = data[split]['x_omic'][:, float_gene_idx]
         self.split = split
         self.grade = data[split]['grade']
         self.num_classes = len(set(self.grade))
@@ -42,7 +45,8 @@ class TCGADataset(Dataset):
             img = self.train_transform(img)
         else:
             img = self.test_transform(img)
-        gene = torch.tensor(self.gene[index]).float()
+        dis_gene = torch.tensor(self.dis_gene[index]).long()
+        float_gene = torch.tensor(self.float_gene[index]).float()
         grade = torch.tensor(self.grade[index]).long()
-        return img, gene, grade
+        return img, dis_gene, float_gene, grade
         
