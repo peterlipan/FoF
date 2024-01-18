@@ -69,34 +69,38 @@ def main(gpu, args, wandb_logger):
     num_classes = train_dataset.num_classes
 
     # model init
-    model = SwinTransformer(image_size=args.image_size, num_classes=num_classes, 
-                            ema=args.ema, pretrained=args.pretrained, ema_decay=args.ema_decay,
-                            patch_size=args.patch_size, window_size=args.window_size,)
-    if args.reload:
-        model_fp = os.path.join(
-            args.checkpoints, "epoch_{}_.pth".format(args.epochs)
-        )
-        model.load_state_dict(torch.load(model_fp, map_location=args.device.type))
+    global_model = SwinTransformer(image_size=args.image_size, num_classes=num_classes, 
+                                    pretrained=args.pretrained, patch_size=args.patch_size, 
+                                    window_size=args.window_size,)
+    # add a dummy class for the local model
+    local_model = SwinTransformer(image_size=args.image_size, num_classes=num_classes + 1, 
+                                    pretrained=args.pretrained, patch_size=args.patch_size,
+                                    window_size=args.window_size,)
 
-    model = model.cuda()
-    if args.ema:
-        optim_params = [{'params': model.local_encoder.parameters()}, {'params': model.global_classifier.parameters()},
-                        {'params': model.local_classifier.parameters()}]
-    else:
-        optim_params = model.parameters()
+    global_model = global_model.cuda()
+    local_model = local_model.cuda()
+
+    optim_params = [{'params': global_model.classifier.parameters()}, {'params': local_model.parameters()}]
     optimizer = torch.optim.AdamW(optim_params, lr=args.lr)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     if args.dataparallel:
-        model = convert_model(model)
-        model = DataParallel(model, device_ids=[int(x) for x in args.visible_gpus.split(",")])
+        global_model = convert_model(global_model)
+        local_model = convert_model(local_model)
+        global_model = DataParallel(global_model, device_ids=[int(x) for x in args.visible_gpus.split(",")])
+        local_model = DataParallel(local_model, device_ids=[int(x) for x in args.visible_gpus.split(",")])
 
     else:
         if args.world_size > 1:
-            model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-            model = DDP(model, device_ids=[gpu], find_unused_parameters=True, broadcast_buffers=False)
+            global_model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(global_model)
+            local_model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(local_model)
+            global_model = DDP(global_model, device_ids=[gpu], find_unused_parameters=True, broadcast_buffers=True)
+            local_model = DDP(local_model, device_ids=[gpu], find_unused_parameters=True, broadcast_buffers=False)
+    
+    models = (global_model, local_model)
+            
 
-    train(loaders, model, optimizer, scheduler, args, wandb_logger)
+    train(loaders, models, optimizer, scheduler, args, wandb_logger)
 
 if __name__ == '__main__':
     # args

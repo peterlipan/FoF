@@ -16,17 +16,25 @@ from .cam_helper import get_swin_cam, cam2mask
 from pytorch_grad_cam.utils.image import show_cam_on_image
 
 
-def train(dataloaders, model, optimizer, scheduler, args, logger):
+def update_ema_variables(global_model, local_model, alpha, step):
+    # Use the true average until the exponential average is more correct
+    alpha = min(1 - 1 / (step + 1), alpha)
+    for ema_param, param in zip(global_model.module.swin.parameters(), local_model.module.swin.parameters()):
+        ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
+
+
+def train(dataloaders, models, optimizer, scheduler, args, logger):
     cudnn.benchmark = False
     cudnn.deterministic = True
     train_loader, test_loader = dataloaders
-    model.train()
+    global_model, local_model = models
+    global_model.train()
+    local_model.train()
     cls_criterion = nn.CrossEntropyLoss()
     start = time.time()
     
     cur_iter = 0
-    hidden_size = model.module.config.hidden_size if isinstance(model, DataParallel) or isinstance(model, DDP) else model.config.hidden_size
-    patch_size = model.module.config.patch_size if isinstance(model, DataParallel) or isinstance(model, DDP) else model.config.patch_size
+    hidden_size = global_model.module.config.hidden_size if isinstance(global_model, DataParallel) or isinstance(global_model, DDP) else global_model.config.hidden_size
     gene_guidance = GeneGuidance(args.batch_size, args.world_size, hidden_size)
     global_local = RegionContrastiveLoss(args.batch_size, args.temperature, args.world_size, hidden_size)
     neg_grade = torch.zeros(args.batch_size, requires_grad=False).long().cuda()
@@ -39,19 +47,23 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
             img, gene, grade = img.cuda(non_blocking=True), gene.cuda(non_blocking=True), grade.cuda(non_blocking=True)
             
             # Class activation map
-            cam = get_swin_cam(model, img, grade, smooth=True)
-            mask = cam2mask(cam, patch_size=patch_size, threshold=args.threshold)
+            cam = get_swin_cam(global_model, img, grade, smooth=True)
+            mask = cam2mask(cam, patch_size=args.patch_size, threshold=args.threshold)
 
             # global-local consistency
-            model.zero_grad()
-            features, pred = model(img, global_process=True)
-            pos_features, pos_pred = model(img, token_mask=mask, global_process=False)
-            neg_features, neg_pred = model(img, token_mask=~mask, global_process=False)
+            global_model.zero_grad()
+            features, pred = global_model(img)
+            pos_features, pos_pred = local_model(img, token_mask=mask)
+            neg_features, neg_pred = local_model(img, token_mask=~mask)
             region_loss = args.lambda_region * global_local(features, pos_features, neg_features)
             # classification loss
             # global grade: [0, 2]; local grade: [0, 3] where 0 is the dummy/normal class
-            cls_loss = (cls_criterion(pos_pred, grade) + cls_criterion(pred, grade + 1) + cls_criterion(neg_pred, neg_grade)) / 3
-            gene_loss = args.lambda_gene * (gene_guidance(pos_features, gene) + gene_guidance(features, gene) + gene_guidance(neg_features, neg_gene)) / 3
+            cls_loss = (cls_criterion(pos_pred, grade + 1) + cls_criterion(pred, grade) + cls_criterion(neg_pred, neg_grade)) / 3
+        
+            all_features = torch.cat((pos_features, features), dim=0)
+            all_gene = torch.cat((gene, gene), dim=0)
+            gene_loss = args.lambda_gene * gene_guidance(all_features, all_gene)
+
             loss = cls_loss + gene_loss + region_loss
 
             if args.rank == 0:
@@ -72,7 +84,7 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
             if args.rank == 0:
                 if cur_iter % 50 == 0 and logger is not None:
                     # pick 3 images from a batch
-                    wandb_imgs = img.permute(0,2,3,1).detach().cpu().numpy()[:5]
+                    wandb_imgs = img.permute(0,2,3,1).detach().cpu().numpy()[:4]
                     wandb_imgs = [(item - np.min(item)) / np.ptp(item) for item in wandb_imgs]
                     wandb_cams = cam.detach().cpu().numpy()[:5]
                     # resize the images and cams to 224x224
@@ -84,7 +96,7 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
                 if cur_iter % 10 == 0:
                     cur_lr = optimizer.param_groups[0]['lr']
                     test_acc, test_f1, test_auc, test_bac, test_sens, test_spec, test_prec, test_mcc, test_kappa = validate(
-                        test_loader, model)
+                        test_loader, global_model)
                     if logger is not None:
                         logger.log({'test': {'Accuracy': test_acc,
                                              'F1 score': test_f1,
@@ -106,8 +118,7 @@ def train(dataloaders, model, optimizer, scheduler, args, logger):
                         cur_lr, loss.item()), end='', flush=True)
 
         # update the ema model
-        if args.ema:
-            model.update_ema_variables(cur_iter)
+        update_ema_variables(global_model, local_model, args.ema_decay, cur_iter)
         scheduler.step()
 
 

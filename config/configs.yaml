@@ -15,21 +15,19 @@ dataset: "TCGA"
 
 # Model options
 pretrained: ""
-reload: False
-ema: True
 gene: ['PTEN', '10q', 'EGFR', '10p', '7p', 'idh mutation', 'CARD11', '7q', 'FGFR2', 'CREB3L2']
 patch_size: 16
 window_size: 7
 
 # training options
 seed: 42
-batch_size: 1
+batch_size: 16
 image_size: 1024
 start_epoch: 0
 epochs: 100
 ema_decay: 0.999
 lr: 0.0001
-lambda_gene: 5000
+lambda_gene: 500
 lambda_region: 0.2
 threshold: 0.5
 temperature: 0.5
