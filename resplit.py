@@ -29,7 +29,7 @@ omic = np.concatenate([train_omic, test_omic])
 grade = np.concatenate([train_grade, test_grade])
 patname = np.concatenate([train_patname, test_patname])
 
-idx = [i for i in range(len(grade)) if patname[i] not in no_grade_pat]
+idx = [i for i in range(len(grade)) if patname[i] not in no_mole_grade]
 my_path = path[idx]
 my_omic = omic[idx]
 my_grade = grade[idx]

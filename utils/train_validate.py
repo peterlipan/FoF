@@ -37,7 +37,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
     patch_size = global_model.module.config.patch_size if isinstance(global_model, DataParallel) or isinstance(global_model, DDP) else global_model.config.patch_size
     hidden_size = global_model.module.config.hidden_size if isinstance(global_model, DataParallel) or isinstance(global_model, DDP) else global_model.config.hidden_size
     float_gene_guidance = GeneGuidance(args.batch_size, args.world_size)
-    discrete_gene_guidance = MultiHeadContrastiveLoss(args.batch_size, args.world_size, hidden_size, args.dis_gene)
+    discrete_gene_guidance = MultiHeadContrastiveLoss(args.batch_size, args.world_size, hidden_size, args.temperature, args.dis_gene)
     global_local = RegionContrastiveLoss(args.batch_size, args.temperature, args.world_size, hidden_size)
     neg_grade = torch.zeros(args.batch_size, requires_grad=False).long().cuda()
     # label the negative regions as grade 0
@@ -77,6 +77,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                 float_gene_loss_item = float_gene_loss.item()
                 dis_gene_loss_item = dis_gene_loss.item()
                 region_loss_item = region_loss.item()
+                print(f"cls_loss: {cls_loss_item}, float_gene_loss: {float_gene_loss_item}, dis_gene_loss: {dis_gene_loss_item}, region_loss: {region_loss_item}")
 
             optimizer.zero_grad()
             loss.backward()
