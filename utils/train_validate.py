@@ -34,6 +34,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
     start = time.time()
     
     cur_iter = 0
+    patch_size = global_model.module.config.patch_size if isinstance(global_model, DataParallel) or isinstance(global_model, DDP) else global_model.config.patch_size
     hidden_size = global_model.module.config.hidden_size if isinstance(global_model, DataParallel) or isinstance(global_model, DDP) else global_model.config.hidden_size
     float_gene_guidance = GeneGuidance(args.batch_size, args.world_size)
     discrete_gene_guidance = MultiHeadContrastiveLoss(args.batch_size, args.world_size, hidden_size, args.dis_gene)
@@ -49,7 +50,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
 
             # Class activation map
             cam = get_swin_cam(global_model, img, grade, smooth=True)
-            mask = cam2mask(cam, patch_size=args.patch_size, threshold=args.threshold)
+            mask = cam2mask(cam, patch_size=patch_size, threshold=args.threshold)
 
             # global-local consistency
             global_model.zero_grad()
@@ -89,7 +90,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
 
             cur_iter += 1
             if args.rank == 0:
-                if cur_iter % 50 == 0 and logger is not None:
+                if cur_iter % 1000 == 1 and logger is not None:
                     # pick 3 images from a batch
                     wandb_imgs = img.permute(0,2,3,1).detach().cpu().numpy()[:4]
                     wandb_imgs = [(item - np.min(item)) / np.ptp(item) for item in wandb_imgs]
@@ -100,7 +101,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                     img_cam = [show_cam_on_image(img, cam, use_rgb=True) for img, cam in zip(wandb_imgs, wandb_cams)]
                     logger.log({'Image with CAM': [wandb.Image(item) for item in img_cam],
                     'Original Image': [wandb.Image(item) for item in wandb_imgs]})
-                if cur_iter % 10 == 0:
+                if cur_iter % 100 == 0:
                     cur_lr = optimizer.param_groups[0]['lr']
                     test_acc, test_f1, test_auc, test_bac, test_sens, test_spec, test_prec, test_mcc, test_kappa = validate(
                         test_loader, global_model)

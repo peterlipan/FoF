@@ -261,8 +261,8 @@ def get_swin_cam(model, images, labels, smooth=True):
     target_layer = model.module.swin.layernorm if isinstance(model, DataParallel) or isinstance(model, DDP) else model.swin.layernorm
     window_size = model.module.config.window_size if isinstance(model, DataParallel) or isinstance(model, DDP) else model.config.window_size
     reshape_transform = partial(swinT_reshape_transform_huggingface,
-                        width=images.shape[3]//128,
-                        height=images.shape[2]//128)
+                        width=images.shape[3]//32,
+                        height=images.shape[2]//32)
     grad_cam = MyGradCAM(model=HuggingfaceToTensorModelWrapper(model),
                         target_layers=[target_layer], reshape_transform=reshape_transform, use_cuda=True)
     targets = [ClassifierOutputTarget(label) for label in labels]

@@ -72,8 +72,8 @@ def main(gpu, args, wandb_logger):
     global_model = SwinTransformer(image_size=args.image_size, num_classes=num_classes, 
                                     pretrained=args.pretrained, patch_size=args.patch_size, 
                                     window_size=args.window_size,)
-    # add a dummy class for the local model
-    local_model = SwinTransformer(image_size=args.image_size, num_classes=num_classes + 1, 
+    # add three dummy classes for the normal and other types
+    local_model = SwinTransformer(image_size=args.image_size, num_classes=num_classes + 2, 
                                     pretrained=args.pretrained, patch_size=args.patch_size,
                                     window_size=args.window_size,)
 

@@ -1,21 +1,22 @@
 import torch.nn as nn
-from transformers import SwinModel, SwinConfig, SwinPreTrainedModel
+from transformers import Swinv2Model, Swinv2Config, Swinv2PreTrainedModel
 
 
-class SwinTransformer(SwinPreTrainedModel):
+class SwinTransformer(Swinv2PreTrainedModel):
     def __init__(self, image_size, num_classes, pretrained="", patch_size=4, window_size=7):
-        config = SwinConfig().from_pretrained(pretrained) if pretrained else SwinConfig()
+        config = Swinv2Config().from_pretrained(pretrained) if pretrained else Swinv2Config()
         config.num_labels = num_classes
         config.image_size = image_size
-        config.patch_size = patch_size
-        config.window_size = window_size
+        if not pretrained:
+            config.patch_size = patch_size
+            config.window_size = window_size
         super(SwinTransformer, self).__init__(config)
         self.config = config
         self.num_classes = num_classes
         
-        self.swin = SwinModel(config, add_pooling_layer=True, use_mask_token=True)
+        self.swin = Swinv2Model(config, add_pooling_layer=True, use_mask_token=True)
         if pretrained:
-            self.swin = SwinModel.from_pretrained(pretrained, config=config, add_pooling_layer=True, use_mask_token=True)
+            self.swin = Swinv2Model.from_pretrained(pretrained, config=config, add_pooling_layer=True, use_mask_token=True)
         self.classifier = nn.Linear(self.swin.num_features, config.num_labels)     
 
         # Initialize weights and apply final processing
