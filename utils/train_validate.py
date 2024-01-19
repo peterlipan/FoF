@@ -77,7 +77,6 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                 float_gene_loss_item = float_gene_loss.item()
                 dis_gene_loss_item = dis_gene_loss.item()
                 region_loss_item = region_loss.item()
-                print(f"cls_loss: {cls_loss_item}, float_gene_loss: {float_gene_loss_item}, dis_gene_loss: {dis_gene_loss_item}, region_loss: {region_loss_item}")
 
             optimizer.zero_grad()
             loss.backward()
