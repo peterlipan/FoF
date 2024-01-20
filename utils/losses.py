@@ -60,6 +60,10 @@ class MultiHeadContrastiveLoss(nn.Module):
         self.world_size = world_size
         self.gene_list = gene_list
         self.neg_labels = torch.zeros((batch_size * world_size, len(gene_list)), requires_grad=False).long().cuda()
+        self.projectors = [nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim, bias=False),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, 64, bias=False)) for _ in gene_list]
         self.criteria = SupConLoss(temperature)
 
     def forward(self, global_features, pos_features, neg_features, labels):
@@ -88,7 +92,7 @@ class MultiHeadContrastiveLoss(nn.Module):
 
         loss = 0
         for i, _ in enumerate(self.gene_list):
-            loss += self.criteria(all_features, all_labels[:, i])
+            loss += self.criteria(self.projectors[i](all_features), all_labels[:, i])
         loss /= len(self.gene_list)
         return loss
 
