@@ -69,7 +69,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             
             loss = cls_loss
             if epoch >= args.warmup:
-                loss += dis_gene_loss + float_gene_loss + region_loss
+                loss = cls_loss + dis_gene_loss + float_gene_loss + region_loss
 
             if args.rank == 0:
                 train_loss = loss.item()
