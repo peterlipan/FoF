@@ -7,7 +7,7 @@ workers: 8
 visible_gpus: "0,1,2,3"
 
 # Paths
-data_path: "./data/splits/my_split_dropGradeNaN.pkl"
+data_path: "./my_split_dropGradeNaN.pkl"
 checkpoints: "./checkpoints"
 
 # Dataset Options
