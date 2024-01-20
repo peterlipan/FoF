@@ -39,7 +39,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
     float_gene_guidance = GeneGuidance(args.batch_size, args.world_size)
     discrete_gene_guidance = MultiHeadContrastiveLoss(args.batch_size, args.world_size, hidden_size, args.temperature, args.dis_gene)
     global_local = RegionContrastiveLoss(args.batch_size, args.temperature, args.world_size, hidden_size)
-    neg_grade = torch.zeros(args.batch_size, requires_grad=False).long().cuda()
+    neg_grade = 3 * torch.ones(args.batch_size, requires_grad=False).long().cuda()
     # label the negative regions as grade 0
     for epoch in range(args.epochs):
         if isinstance(train_loader.sampler, DistributedSampler):
@@ -59,8 +59,8 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             neg_features, neg_pred = local_model(img, token_mask=~mask)
             region_loss = args.lambda_region * global_local(features, pos_features, neg_features)
             # classification loss
-            # global grade: [0, 2]; local grade: [0, 3] where 0 is the dummy/normal class
-            cls_loss = (cls_criterion(pos_pred, grade + 1) + cls_criterion(pred, grade) + cls_criterion(neg_pred, neg_grade)) / 3
+            # global grade: [0, 2]; local grade: [0, 3] where 3 is the dummy/normal class
+            cls_loss = (cls_criterion(pos_pred, grade) + cls_criterion(pred, grade) + cls_criterion(neg_pred, neg_grade)) / 3
         
             global_pos_features = torch.cat((pos_features, features), dim=0)
             global_pos_gene = torch.cat((float_gene, float_gene), dim=0)
@@ -101,7 +101,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                     img_cam = [show_cam_on_image(img, cam, use_rgb=True) for img, cam in zip(wandb_imgs, wandb_cams)]
                     logger.log({'Image with CAM': [wandb.Image(item) for item in img_cam],
                     'Original Image': [wandb.Image(item) for item in wandb_imgs]})
-                if cur_iter % 100 == 0:
+                if cur_iter % 100 == 1:
                     cur_lr = optimizer.param_groups[0]['lr']
                     test_acc, test_f1, test_auc, test_bac, test_sens, test_spec, test_prec, test_mcc, test_kappa = validate(
                         test_loader, global_model)
