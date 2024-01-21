@@ -26,10 +26,8 @@ class SupConLoss(nn.Module):
 
 
     def forward(self, features, labels):
-        # project the features to the contrast space [N, D]
         N = features.size(0)
         device = features.device
-        features = F.normalize(features, dim=-1, p=2)
         # sim: [N, N]
         sim = self.similarity_f(features.unsqueeze(1), features.unsqueeze(0)) / self.temperature
         # define the positive pairs by the labels
