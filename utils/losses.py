@@ -90,7 +90,8 @@ class MultiHeadContrastiveLoss(nn.Module):
 
         loss = 0
         for i, _ in enumerate(self.gene_list):
-            loss += self.criteria(self.projectors[i](all_features), all_labels[:, i])
+            projector = self.projectors[i].cuda(all_features.device)
+            loss += self.criteria(projector(all_features), all_labels[:, i])
         loss /= len(self.gene_list)
         return loss
 
