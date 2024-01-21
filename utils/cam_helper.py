@@ -278,6 +278,6 @@ def cam2mask(cam, patch_size, threshold=0.2):
     mask_2d = pooler(cam)
     # mask: (B, num_patches)
     mask = mask_2d.flatten(1)
-    # to boolean mask: 1 -> mask out, 0 -> keep
-    mask = mask < threshold
+    # to float mask: 1 -> mask out, 0 -> keep
+    mask = (mask < threshold).float()
     return mask

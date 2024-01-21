@@ -40,7 +40,6 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
     discrete_gene_guidance = MultiHeadContrastiveLoss(args.batch_size, args.world_size, hidden_size, args.temperature, args.dis_gene)
     global_local = RegionContrastiveLoss(args.batch_size, args.temperature, args.world_size, hidden_size)
     neg_grade = 3 * torch.ones(args.batch_size, requires_grad=False).long().cuda()
-    # label the negative regions as grade 0
     for epoch in range(args.epochs):
         if isinstance(train_loader.sampler, DistributedSampler):
             train_loader.sampler.set_epoch(epoch)
@@ -56,7 +55,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             global_model.zero_grad()
             features, pred = global_model(img)
             pos_features, pos_pred = local_model(img, token_mask=mask)
-            neg_features, neg_pred = local_model(img, token_mask=~mask)
+            neg_features, neg_pred = local_model(img, token_mask=1 - mask)
             region_loss = args.lambda_region * global_local(features, pos_features, neg_features)
             # classification loss
             # global grade: [0, 2]; local grade: [0, 3] where 3 is the dummy/normal class

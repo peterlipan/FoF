@@ -51,5 +51,5 @@ for i, (train_id, test_id) in enumerate(kf.split(my_grade)):
     temp['test']['grade'] = my_grade[test_id]
     my_data['splits'][i] = temp
 
-with open("./data/splits/my_split_dropGradeNaN.pkl", "wb") as f:
+with open("./my_split_dropGradeNaN.pkl", "wb") as f:
     pickle.dump(my_data, f)

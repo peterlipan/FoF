@@ -20,7 +20,7 @@ class SwinTransformer(Swinv2PreTrainedModel):
         self.classifier = nn.Linear(self.swin.num_features, config.num_labels)     
 
         # Initialize weights and apply final processing
-        self.post_init()
+        # self.post_init()
 
     def forward(self, x, token_mask=None):
         return_dict = self.config.use_return_dict

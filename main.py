@@ -13,7 +13,6 @@ import numpy as np
 from torch.utils.data import DataLoader
 from utils import yaml_config_hook, convert_model, train
 import warnings
-warnings.filterwarnings('ignore')
 
 
 def main(gpu, args, wandb_logger):

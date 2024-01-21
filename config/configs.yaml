@@ -17,14 +17,14 @@ dataset: "TCGA"
 pretrained: "gagan3012/swinv2_1024"
 dis_gene: ['idh mutation', 'codeletion', 'PTEN', 'EGFR', 'CARD11', 'FGFR2']
 float_gene: ['10q', '10p', '7p', '7q']
-patch_size: 16
-window_size: 7
+patch_size: 4
+window_size: 8
 
 # training options
 seed: 42
 batch_size: 1
 image_size: 1024
-warmup: -1
+warmup: 10
 epochs: 300
 ema_decay: 0.999
 lr: 0.0001
@@ -32,4 +32,4 @@ lambda_float_gene: 5
 lambda_dis_gene: 0.2
 lambda_region: 0.2
 threshold: 0.5
-temperature: 0.5
+temperature: 0.07
