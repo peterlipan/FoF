@@ -134,7 +134,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                         epoch, args.epochs, i + 1, len(train_loader), time.time() - start,
                         cur_lr, loss.item()), end='', flush=True)
 
-        # scheduler.step()
+        scheduler.step()
 
 
 def validate(dataloader, model):

@@ -24,7 +24,7 @@ window_size: 8
 seed: 42
 batch_size: 1
 image_size: 1024
-warmup: -1
+warmup: 10
 epochs: 300
 ema_decay: 0.999
 lr: 1.0e-5
