@@ -1,16 +1,18 @@
+import torch
 import torch.nn as nn
 from transformers import Swinv2Model, Swinv2Config, Swinv2PreTrainedModel
 
 
-class SwinTransformer(Swinv2PreTrainedModel):
+class SwinTransformer(nn.Module):
     def __init__(self, image_size, num_classes, pretrained="", patch_size=4, window_size=7):
+        super(SwinTransformer, self).__init__()
         config = Swinv2Config().from_pretrained(pretrained) if pretrained else Swinv2Config()
         config.num_labels = num_classes
         config.image_size = image_size
         if not pretrained:
             config.patch_size = patch_size
             config.window_size = window_size
-        super(SwinTransformer, self).__init__(config)
+        
         self.config = config
         self.num_classes = num_classes
         
@@ -28,3 +30,26 @@ class SwinTransformer(Swinv2PreTrainedModel):
         features = outputs[1]
         logits = self.classifier(features)
         return features, logits
+
+
+class ContrastiveProjectors(nn.Module):
+    def __init__(self, hidden_dim, gene_list):
+        super(ContrastiveProjectors, self).__init__()
+        self.region_projector = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, 64),
+        )
+        self.gene_projectors = nn.ModuleList(
+            [nn.Sequential(
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.ReLU(),
+                nn.Linear(hidden_dim, 64),
+            ) for _ in gene_list]
+        )
+    
+    def forward(self, features):
+        region_features = self.region_projector(features)
+        # num_gene * [B, 64] -> [num_gene, B, 64]
+        gene_features = torch.stack([gene_projector(features) for gene_projector in self.gene_projectors], dim=0)
+        return region_features, gene_features

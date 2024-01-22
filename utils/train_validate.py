@@ -27,18 +27,18 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
     cudnn.benchmark = False
     cudnn.deterministic = True
     train_loader, test_loader = dataloaders
-    global_model, local_model = models
+    global_model, local_model, projectors = models
     global_model.train()
     local_model.train()
+    projectors.train()
     cls_criterion = nn.CrossEntropyLoss()
     start = time.time()
     
     cur_iter = 0
     patch_size = global_model.module.config.patch_size if isinstance(global_model, DataParallel) or isinstance(global_model, DDP) else global_model.config.patch_size
-    hidden_size = global_model.module.config.hidden_size if isinstance(global_model, DataParallel) or isinstance(global_model, DDP) else global_model.config.hidden_size
     float_gene_guidance = GeneGuidance(args.batch_size, args.world_size)
-    discrete_gene_guidance = MultiHeadContrastiveLoss(args.batch_size, args.world_size, hidden_size, args.temperature, args.dis_gene)
-    global_local = RegionContrastiveLoss(args.batch_size, args.temperature, args.world_size, hidden_size)
+    discrete_gene_guidance = MultiHeadContrastiveLoss(args.batch_size, args.world_size, args.temperature, args.dis_gene)
+    global_local = RegionContrastiveLoss(args.batch_size, args.temperature, args.world_size)
     neg_grade = 3 * torch.ones(args.batch_size, requires_grad=False).long().cuda()
     for epoch in range(args.epochs):
         if isinstance(train_loader.sampler, DistributedSampler):
@@ -56,18 +56,27 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             features, pred = global_model(img)
             pos_features, pos_pred = local_model(img, token_mask=mask)
             neg_features, neg_pred = local_model(img, token_mask=1 - mask)
-            region_loss = args.lambda_region * global_local(features, pos_features, neg_features)
-            # classification loss
-            # global grade: [0, 2]; local grade: [0, 3] where 3 is the dummy/normal class
-            cls_loss = (cls_criterion(pos_pred, grade) + cls_criterion(pred, grade) + cls_criterion(neg_pred, neg_grade)) / 3
-        
+            # project the features to contrastive space
+            global_region_features, global_gene_features = projectors(features)
+            pos_region_features, pos_gene_features = projectors(pos_features)
+            neg_region_features, neg_gene_features = projectors(neg_features)
+
+            # region contrastive loss
+            region_loss = args.lambda_region * global_local(global_region_features, pos_region_features, neg_region_features)
+            # float gene guidance
             global_pos_features = torch.cat((pos_features, features), dim=0)
             global_pos_gene = torch.cat((float_gene, float_gene), dim=0)
-            dis_gene_loss = args.lambda_dis_gene * discrete_gene_guidance(features, pos_features, neg_features, dis_gene)
             float_gene_loss = args.lambda_float_gene * float_gene_guidance(global_pos_features, global_pos_gene)
+            # discrete gene guidance
+            dis_gene_loss = args.lambda_dis_gene * discrete_gene_guidance(global_gene_features, pos_gene_features, neg_gene_features, dis_gene)
             
-            loss = cls_loss
-            if epoch >= args.warmup:
+            if epoch < args.warmup:
+                cls_loss = cls_criterion(pred, grade)
+                loss = cls_loss
+            else:
+                # classification loss
+                # global grade: [0, 2]; local grade: [0, 3] where 3 is the dummy/normal class
+                cls_loss = (cls_criterion(pos_pred, grade) + cls_criterion(pred, grade) + cls_criterion(neg_pred, neg_grade)) / 3
                 loss = cls_loss + dis_gene_loss + float_gene_loss + region_loss
 
             if args.rank == 0:
@@ -125,7 +134,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                         epoch, args.epochs, i + 1, len(train_loader), time.time() - start,
                         cur_lr, loss.item()), end='', flush=True)
 
-        scheduler.step()
+        # scheduler.step()
 
 
 def validate(dataloader, model):

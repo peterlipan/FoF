@@ -24,10 +24,10 @@ window_size: 8
 seed: 42
 batch_size: 1
 image_size: 1024
-warmup: 10
+warmup: -1
 epochs: 300
 ema_decay: 0.999
-lr: 0.0001
+lr: 1.0e-5
 lambda_float_gene: 5
 lambda_dis_gene: 0.2
 lambda_region: 0.2

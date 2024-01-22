@@ -52,46 +52,36 @@ class SupConLoss(nn.Module):
 
 
 class MultiHeadContrastiveLoss(nn.Module):
-    def __init__(self, batch_size, world_size, hidden_dim, temperature, gene_list):
+    def __init__(self, batch_size, world_size, temperature, gene_list):
         super(MultiHeadContrastiveLoss, self).__init__()
         self.batch_size = batch_size
         self.world_size = world_size
         self.gene_list = gene_list
         self.neg_labels = torch.zeros((batch_size * world_size, len(gene_list)), requires_grad=False).long().cuda()
-        self.projectors = [nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim, bias=False),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, 64, bias=False)) for _ in gene_list]
         self.criteria = SupConLoss(temperature)
 
     def forward(self, global_features, pos_features, neg_features, labels):
         """
-        global_features: [B, C], features of the global image
-        pos_features: [B, C], features of the positive regions
-        neg_features: [B, C], features of the negative regions
-        labels: [B], labels of the images
+        features: [num_gene, B, 64]
         """
         N = self.batch_size * self.world_size
         # gather data from all GPUs
+        # features: [num_gene, B, 64] -> [num_gene, N, 64]
         if self.world_size > 1:
-            global_features = torch.cat(GatherLayer.apply(global_features), dim=0)
-            pos_features = torch.cat(GatherLayer.apply(pos_features), dim=0)
-            neg_features = torch.cat(GatherLayer.apply(neg_features), dim=0)
+            global_features = torch.cat(GatherLayer.apply(global_features), dim=1)
+            pos_features = torch.cat(GatherLayer.apply(pos_features), dim=1)
+            neg_features = torch.cat(GatherLayer.apply(neg_features), dim=1)
             labels = torch.cat(GatherLayer.apply(labels), dim=0)
         # reshape as [N, C]
-        global_features = global_features.view(N, -1)
-        pos_features = pos_features.view(N, -1)
-        neg_features = neg_features.view(N, -1)
         labels = labels.view(N, -1)
 
-        # concat the data as [3N, C]
-        all_features = torch.cat((global_features, pos_features, neg_features), dim=0)
+        # all_features: [num_gene, 3N, 64]
+        all_features = torch.cat((global_features, pos_features, neg_features), dim=1)
         all_labels = torch.cat((labels, labels, self.neg_labels), dim=0)
 
         loss = 0
         for i, _ in enumerate(self.gene_list):
-            projector = self.projectors[i].cuda(all_features.device)
-            loss += self.criteria(projector(all_features), all_labels[:, i])
+            loss += self.criteria(all_features[i, :, :], all_labels[:, i])
         loss /= len(self.gene_list)
         return loss
 
@@ -126,7 +116,7 @@ class GeneGuidance(nn.Module):
 
 
 class RegionContrastiveLoss(nn.Module):
-    def __init__(self, batch_size, temperature, world_size, hidden_dim):
+    def __init__(self, batch_size, temperature, world_size):
         super(RegionContrastiveLoss, self).__init__()
         self.batch_size = batch_size
         self.temperature = temperature
@@ -135,11 +125,6 @@ class RegionContrastiveLoss(nn.Module):
         self.mask = self.mask_correlated_samples(batch_size, world_size)
         self.criterion = nn.CrossEntropyLoss(reduction="sum")
         self.similarity_f = nn.CosineSimilarity(dim=2)
-        self.projector = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim, bias=False),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, 64, bias=False),
-        )
 
     def mask_correlated_samples(self, batch_size, world_size):
         N = batch_size * world_size
@@ -169,15 +154,12 @@ class RegionContrastiveLoss(nn.Module):
         neg: negative region features
         """
         N = self.batch_size * self.world_size
-        self.projector = self.projector.cuda(anchor.device)
         if self.world_size > 1:
             anchor = torch.cat(GatherLayer.apply(anchor), dim=0)
             pos = torch.cat(GatherLayer.apply(pos), dim=0)
             neg = torch.cat(GatherLayer.apply(neg), dim=0)
         # z: [3N, C]
         z = torch.cat((anchor, pos, neg), dim=0)
-        # project to the contrast space
-        z = self.projector(z)
 
         # sim: [3N, 3N]
         sim = self.similarity_f(z.unsqueeze(1), z.unsqueeze(0)) / self.temperature
