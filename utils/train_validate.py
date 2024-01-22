@@ -61,6 +61,9 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             pos_region_features, pos_gene_features = projectors(pos_features)
             neg_region_features, neg_gene_features = projectors(neg_features)
 
+            # classification loss
+            # global grade: [0, 2]; local grade: [0, 3] where 3 is the dummy/normal class
+            cls_loss = (cls_criterion(pos_pred, grade) + cls_criterion(pred, grade) + cls_criterion(neg_pred, neg_grade)) / 3
             # region contrastive loss
             region_loss = args.lambda_region * global_local(global_region_features, pos_region_features, neg_region_features)
             # float gene guidance
@@ -68,16 +71,9 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             global_pos_gene = torch.cat((float_gene, float_gene), dim=0)
             float_gene_loss = args.lambda_float_gene * float_gene_guidance(global_pos_features, global_pos_gene)
             # discrete gene guidance
-            dis_gene_loss = args.lambda_dis_gene * discrete_gene_guidance(global_gene_features, pos_gene_features, neg_gene_features, dis_gene)
-            
-            if epoch < args.warmup:
-                cls_loss = cls_criterion(pred, grade)
-                loss = cls_loss
-            else:
-                # classification loss
-                # global grade: [0, 2]; local grade: [0, 3] where 3 is the dummy/normal class
-                cls_loss = (cls_criterion(pos_pred, grade) + cls_criterion(pred, grade) + cls_criterion(neg_pred, neg_grade)) / 3
-                loss = cls_loss + dis_gene_loss + float_gene_loss + region_loss
+            dis_gene_loss = args.lambda_dis_gene * discrete_gene_guidance(global_gene_features, pos_gene_features, neg_gene_features, dis_gene)           
+
+            loss = cls_loss + dis_gene_loss + float_gene_loss + region_loss                
 
             if args.rank == 0:
                 train_loss = loss.item()
