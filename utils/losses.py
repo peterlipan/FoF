@@ -104,11 +104,11 @@ class GeneGuidance(nn.Module):
 
         # sample-wise relationship, NxN
         feature_sim = features.mm(features.t())
-        norm = torch.norm(feature_sim, 2, 1).view(-1, 1) + 1e-5
+        norm = torch.norm(feature_sim, 2, 1).view(-1, 1) + 1e-6
         feature_sim = feature_sim / norm
 
         gene_sim = gene.mm(gene.t())
-        norm = torch.norm(gene_sim, 2, 1).view(-1, 1) + 1e-5
+        norm = torch.norm(gene_sim, 2, 1).view(-1, 1) + 1e-6
         gene_sim = gene_sim / norm
 
         batch_loss = torch.mean((feature_sim - gene_sim) ** 2 / N)
