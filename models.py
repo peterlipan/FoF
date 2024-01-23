@@ -36,7 +36,7 @@ class ContrastiveProjectors(nn.Module):
     def __init__(self, hidden_dim, gene_list):
         super(ContrastiveProjectors, self).__init__()
         self.region_projector = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_di, bias=False),
+            nn.Linear(hidden_dim, hidden_dim, bias=False),
             nn.ReLU(),
             nn.Linear(hidden_dim, 64, bias=False),
         )
