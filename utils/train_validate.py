@@ -63,7 +63,10 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
 
             # classification loss
             # global grade: [0, 2]; local grade: [0, 3] where 3 is the dummy/normal class
-            cls_loss = (cls_criterion(pos_pred, grade) + cls_criterion(pred, grade) + cls_criterion(neg_pred, neg_grade)) / 3
+            global_cls = cls_criterion(pred, grade)
+            pos_cls = cls_criterion(pos_pred, grade)
+            neg_cls = cls_criterion(neg_pred, neg_grade)
+            cls_loss = (global_cls + pos_cls + neg_cls) / 3
             # region contrastive loss
             region_loss = args.lambda_region * global_local(global_region_features, pos_region_features, neg_region_features)
             # float gene guidance
@@ -77,6 +80,9 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
 
             if args.rank == 0:
                 train_loss = loss.item()
+                global_cls_loss = global_cls.item()
+                pos_cls_loss = pos_cls.item()
+                neg_cls_loss = neg_cls.item()
                 cls_loss_item = cls_loss.item()
                 float_gene_loss_item = float_gene_loss.item()
                 dis_gene_loss_item = dis_gene_loss.item()
@@ -121,6 +127,9 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                                              'Kappa': test_kappa},
                                     'train': {'loss': train_loss,
                                               'cls_loss': cls_loss_item,
+                                                'global_cls_loss': global_cls_loss,
+                                                'pos_cls_loss': pos_cls_loss,
+                                                'neg_cls_loss': neg_cls_loss,
                                               'float_gene_loss': float_gene_loss_item,
                                                 'dis_gene_loss': dis_gene_loss_item,
                                               'region_loss': region_loss_item,
