@@ -84,6 +84,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                 pos_cls_loss = pos_cls.item()
                 neg_cls_loss = neg_cls.item()
                 cls_loss_item = cls_loss.item()
+                pos_ratio = torch.mean(mask).item()
                 float_gene_loss_item = float_gene_loss.item()
                 dis_gene_loss_item = dis_gene_loss.item()
                 region_loss_item = region_loss.item()
@@ -133,6 +134,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                                                 'neg_cls_loss': neg_cls_loss,
                                               'float_gene_loss': float_gene_loss_item,
                                                 'dis_gene_loss': dis_gene_loss_item,
+                                                'pos_ratio': pos_ratio,
                                               'region_loss': region_loss_item,
                                               'learning_rate': cur_lr}}, )
 
