@@ -30,5 +30,5 @@ lr: 1.0e-5
 lambda_float_gene: 5
 lambda_dis_gene: 0.2
 lambda_region: 0.2
-threshold: 0.5
+threshold: 0.4
 temperature: 0.07

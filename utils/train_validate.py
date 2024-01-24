@@ -68,7 +68,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             global_cls = cls_criterion(pred, grade)
             pos_cls = cls_criterion(pos_pred, grade)
             neg_cls = cls_criterion(neg_pred, neg_grade)
-            cls_loss = (global_cls + pos_cls + neg_cls) / 3
+            cls_loss = global_cls + pos_cls + neg_cls
             # region contrastive loss
             region_loss = args.lambda_region * global_local(global_region_features, pos_region_features, neg_region_features)
             # float gene guidance
@@ -94,7 +94,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            scheduler.step(epoch + i / len(train_loader))
+            # scheduler.step(epoch + i / len(train_loader))
             # update the ema model
             update_ema_variables(global_model, local_model, args.ema_decay, cur_iter)
 
@@ -106,13 +106,13 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             if args.rank == 0:
                 if cur_iter % 1000 == 1 and logger is not None:
                     # pick 3 images from a batch
-                    wandb_imgs = img.permute(0,2,3,1).detach().cpu().numpy()[:4]
+                    wandb_imgs = img1.permute(0,2,3,1).detach().cpu().numpy()[:4]
                     wandb_imgs = [(item - np.min(item)) / np.ptp(item) for item in wandb_imgs]
                     wandb_cams = cam.detach().cpu().numpy()[:5]
                     # resize the images and cams to 224x224
                     wandb_imgs = [cv2.resize(item, (224, 224)) for item in wandb_imgs]
                     wandb_cams = [cv2.resize(item, (224, 224)) for item in wandb_cams]
-                    img_cam = [show_cam_on_image(img, cam, use_rgb=True) for img, cam in zip(wandb_imgs, wandb_cams)]
+                    img_cam = [show_cam_on_image(img1, cam, use_rgb=True) for img1, cam in zip(wandb_imgs, wandb_cams)]
                     logger.log({'Image with CAM': [wandb.Image(item) for item in img_cam],
                     'Original Image': [wandb.Image(item) for item in wandb_imgs]})
                 if cur_iter % 100 == 1:

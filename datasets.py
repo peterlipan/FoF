@@ -35,7 +35,7 @@ class TCGADataset(Dataset):
                     A.RandomGridShuffle(grid=(3, 3), p=.5),
                     A.RandomGridShuffle(grid=(7, 7), p=.5),
                     A.RandomGridShuffle(grid=(11, 11), p=.5),
-                ], p=.3),
+                ], p=.5),
             ]
         )
 
