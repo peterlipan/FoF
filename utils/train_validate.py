@@ -35,6 +35,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
     start = time.time()
     
     cur_iter = 0
+    pos_ratio = 0
     patch_size = global_model.module.config.patch_size if isinstance(global_model, DataParallel) or isinstance(global_model, DDP) else global_model.config.patch_size
     float_gene_guidance = GeneGuidance(args.batch_size, args.world_size)
     discrete_gene_guidance = MultiHeadContrastiveLoss(args.batch_size, args.world_size, args.temperature, args.dis_gene)
@@ -43,19 +44,20 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
     for epoch in range(args.epochs):
         if isinstance(train_loader.sampler, DistributedSampler):
             train_loader.sampler.set_epoch(epoch)
-        for i, (img, dis_gene, float_gene, grade) in enumerate(train_loader):
-            img, dis_gene, float_gene, grade = img.cuda(non_blocking=True), dis_gene.cuda(non_blocking=True), \
-                                               float_gene.cuda(non_blocking=True), grade.cuda(non_blocking=True)
+        for i, (img1, img2, img3, dis_gene, float_gene, grade) in enumerate(train_loader):
+            img1, img2, img3, dis_gene, float_gene, grade = img1.cuda(non_blocking=True), img2.cuda(non_blocking=True), \
+                                                            img3.cuda(non_blocking=True), dis_gene.cuda(non_blocking=True), \
+                                                            float_gene.cuda(non_blocking=True), grade.cuda(non_blocking=True)
 
             # Class activation map
-            cam = get_swin_cam(global_model, img, grade, smooth=True)
+            cam = get_swin_cam(global_model, img1, grade, smooth=True)
             mask = cam2mask(cam, patch_size=patch_size, threshold=args.threshold)
 
             # global-local consistency
             global_model.zero_grad()
-            features, pred = global_model(img)
-            pos_features, pos_pred = local_model(img, token_mask=mask)
-            neg_features, neg_pred = local_model(img, token_mask=1 - mask)
+            features, pred = global_model(img1)
+            pos_features, pos_pred = local_model(img2, token_mask=mask)
+            neg_features, neg_pred = local_model(img3, token_mask=1 - mask)
             # project the features to contrastive space
             global_region_features, global_gene_features = projectors(features)
             pos_region_features, pos_gene_features = projectors(pos_features)
@@ -84,7 +86,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                 pos_cls_loss = pos_cls.item()
                 neg_cls_loss = neg_cls.item()
                 cls_loss_item = cls_loss.item()
-                pos_ratio = torch.mean(mask).item()
+                pos_ratio += torch.mean(mask).item()
                 float_gene_loss_item = float_gene_loss.item()
                 dis_gene_loss_item = dis_gene_loss.item()
                 region_loss_item = region_loss.item()
@@ -134,9 +136,10 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                                                 'neg_cls_loss': neg_cls_loss,
                                               'float_gene_loss': float_gene_loss_item,
                                                 'dis_gene_loss': dis_gene_loss_item,
-                                                'pos_ratio': pos_ratio,
+                                                'pos_ratio': pos_ratio / 100,
                                               'region_loss': region_loss_item,
                                               'learning_rate': cur_lr}}, )
+                    pos_ratio = 0
 
                     print('\rEpoch: [%2d/%2d] Iter [%4d/%4d] || Time: %4.4f sec || lr: %.6f || Loss: %.4f' % (
                         epoch, args.epochs, i + 1, len(train_loader), time.time() - start,

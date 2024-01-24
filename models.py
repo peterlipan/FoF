@@ -42,9 +42,8 @@ class ContrastiveProjectors(nn.Module):
         )
         self.gene_projectors = nn.ModuleList(
             [nn.Sequential(
-                nn.Linear(hidden_dim, hidden_dim, bias=False),
-                nn.ReLU(),
                 nn.Linear(hidden_dim, 64, bias=False),
+                nn.ReLU(),
             ) for _ in gene_list]
         )
     
