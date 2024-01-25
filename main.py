@@ -68,43 +68,33 @@ def main(gpu, args, wandb_logger):
     num_classes = train_dataset.num_classes
 
     # model init
-    global_model = SwinTransformer(image_size=args.image_size, num_classes=num_classes, 
+    model = SwinTransformer(image_size=args.image_size, num_classes=num_classes, 
                                     pretrained=args.pretrained, patch_size=args.patch_size, 
                                     window_size=args.window_size,)
-    # add three dummy classes for the normal and other types
-    local_model = SwinTransformer(image_size=args.image_size, num_classes=num_classes + 4, 
-                                    pretrained=args.pretrained, patch_size=args.patch_size,
-                                    window_size=args.window_size,)
-    projectors = ContrastiveProjectors(global_model.config.hidden_size, args.dis_gene)
+    projectors = ContrastiveProjectors(model.config.hidden_size, args.dis_gene)
 
 
-    global_model = global_model.cuda()
-    local_model = local_model.cuda()
+    model = model.cuda()
     projectors = projectors.cuda()
 
-    optim_params = [{'params': global_model.classifier.parameters()}, {'params': local_model.parameters()}, 
-                    {'params': projectors.parameters(), 'lr_mult': 10}]
+    optim_params = [{'params': model.parameters()}, {'params': projectors.parameters(), 'lr_mult': 10}]
     optimizer = torch.optim.AdamW(optim_params, lr=args.lr)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=2)
 
     if args.dataparallel:
-        global_model = convert_model(global_model)
-        local_model = convert_model(local_model)
+        model = convert_model(model)
         projectors = convert_model(projectors)
-        global_model = DataParallel(global_model, device_ids=[int(x) for x in args.visible_gpus.split(",")])
-        local_model = DataParallel(local_model, device_ids=[int(x) for x in args.visible_gpus.split(",")])
+        model = DataParallel(model, device_ids=[int(x) for x in args.visible_gpus.split(",")])
         projectors = DataParallel(projectors, device_ids=[int(x) for x in args.visible_gpus.split(",")])
 
     else:
         if args.world_size > 1:
-            global_model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(global_model)
-            local_model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(local_model)
+            model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
             projectors = torch.nn.SyncBatchNorm.convert_sync_batchnorm(projectors)
-            global_model = DDP(global_model, device_ids=[gpu], find_unused_parameters=True, broadcast_buffers=True)
-            local_model = DDP(local_model, device_ids=[gpu], find_unused_parameters=True, broadcast_buffers=False)
+            model = DDP(model, device_ids=[gpu], find_unused_parameters=True, broadcast_buffers=False)
             projectors = DDP(projectors, device_ids=[gpu], find_unused_parameters=True, broadcast_buffers=False)
     
-    models = (global_model, local_model, projectors)
+    models = (model, projectors)
             
 
     train(loaders, models, optimizer, scheduler, args, wandb_logger)
