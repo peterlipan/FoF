@@ -19,8 +19,7 @@ class SwinTransformer(nn.Module):
         self.swin = Swinv2Model(config, add_pooling_layer=True, use_mask_token=True)
         if pretrained:
             self.swin = Swinv2Model.from_pretrained(pretrained, config=config, add_pooling_layer=True, use_mask_token=True)
-        self.global_classifier = nn.Linear(self.swin.num_features, config.num_labels)
-        self.local_classifier = nn.Linear(self.swin.num_features, config.num_labels + 4)     
+        self.classifier = nn.Linear(self.swin.num_features, config.num_labels + 4) 
 
         # Initialize weights and apply final processing
         # self.post_init()
@@ -29,9 +28,8 @@ class SwinTransformer(nn.Module):
         return_dict = self.config.use_return_dict
         outputs = self.swin(x, bool_masked_pos=token_mask, return_dict=return_dict)
         features = outputs[1]
-        global_logits = self.global_classifier(features)
-        local_logitis = self.local_classifier(features)
-        return features, global_logits, local_logitis
+        logits = self.classifier(features)
+        return features, logits
 
 
 class ContrastiveProjectors(nn.Module):

@@ -1,10 +1,10 @@
 # distributed training
 nodes: 1
-gpus: 3
+gpus: 4
 nr: 0
 dataparallel: 0
 workers: 8
-visible_gpus: "0,1,4"
+visible_gpus: "0,1,2,3"
 
 # Paths
 data_path: "./my_split_dropGradeNaN.pkl"
@@ -30,5 +30,5 @@ lr: 1.0e-5
 lambda_float_gene: 5
 lambda_dis_gene: 0.2
 lambda_region: 0.2
-threshold: 0.4
+threshold: 0.5
 temperature: 0.07

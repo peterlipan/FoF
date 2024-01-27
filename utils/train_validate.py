@@ -39,7 +39,6 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
     float_gene_guidance = GeneGuidance(args.batch_size, args.world_size)
     discrete_gene_guidance = MultiHeadContrastiveLoss(args.batch_size, args.world_size, args.temperature, args.dis_gene)
     global_local = RegionContrastiveLoss(args.batch_size, args.temperature, args.world_size)
-    neg_grade = 3 * torch.ones(args.batch_size, requires_grad=False).long().cuda()
     for epoch in range(args.epochs):
         if isinstance(train_loader.sampler, DistributedSampler):
             train_loader.sampler.set_epoch(epoch)
@@ -54,9 +53,9 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
 
             # global-local consistency
             model.zero_grad()
-            features, pred, _ = model(img1)
-            pos_features, _, pos_pred = model(img2, token_mask=mask)
-            neg_features, _, neg_pred = model(img3, token_mask=1 - mask)
+            features, pred = model(img1)
+            pos_features, pos_pred = model(img2, token_mask=mask)
+            neg_features, neg_pred = model(img1, token_mask=1 - mask)
             # project the features to contrastive space
             global_region_features, global_gene_features = projectors(features)
             pos_region_features, pos_gene_features = projectors(pos_features)
@@ -66,8 +65,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             # global grade: [0, 2]; local grade: [0, 3] where 3 is the dummy/normal class
             global_cls = cls_criterion(pred, grade)
             pos_cls = cls_criterion(pos_pred, grade)
-            neg_cls = cls_criterion(neg_pred, neg_grade)
-            cls_loss = global_cls + pos_cls + neg_cls
+            cls_loss = global_cls + pos_cls
             # region contrastive loss
             region_loss = args.lambda_region * global_local(global_region_features, pos_region_features, neg_region_features)
             # float gene guidance
@@ -77,7 +75,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             # discrete gene guidance
             dis_gene_loss = args.lambda_dis_gene * discrete_gene_guidance(global_gene_features, pos_gene_features, neg_gene_features, dis_gene)           
 
-            loss = cls_loss + dis_gene_loss + region_loss                
+            loss = cls_loss + dis_gene_loss + region_loss + float_gene_loss                
 
             if args.rank == 0:
                 train_loss = loss.item()
@@ -154,7 +152,7 @@ def validate(dataloader, model):
     with torch.no_grad():
         for img, _, _, grade in dataloader:
             img, grade = img.cuda(non_blocking=True), grade.cuda(non_blocking=True)
-            _, pred, _ = model(img)
+            _, pred = model(img)
             pred = F.softmax(pred, dim=1)
             ground_truth = torch.cat((ground_truth, grade))
             predictions = torch.cat((predictions, pred))
