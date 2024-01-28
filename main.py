@@ -79,7 +79,7 @@ def main(gpu, args, wandb_logger):
 
     optim_params = [{'params': model.parameters()}, {'params': projectors.parameters(), 'lr_mult': 10}]
     optimizer = torch.optim.AdamW(optim_params, lr=args.lr)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=2)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=0)
 
     if args.dataparallel:
         model = convert_model(model)
