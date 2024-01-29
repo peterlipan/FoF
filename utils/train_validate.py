@@ -44,10 +44,10 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
     for epoch in range(args.epochs):
         if isinstance(train_loader.sampler, DistributedSampler):
             train_loader.sampler.set_epoch(epoch)
-        for i, (img1, img2, img3, dis_gene, float_gene, grade) in enumerate(train_loader):
-            img1, img2, img3, dis_gene, float_gene, grade = img1.cuda(non_blocking=True), img2.cuda(non_blocking=True), \
-                                                            img3.cuda(non_blocking=True), dis_gene.cuda(non_blocking=True), \
-                                                            float_gene.cuda(non_blocking=True), grade.cuda(non_blocking=True)
+        for i, (img1, img2, dis_gene, float_gene, grade) in enumerate(train_loader):
+            img1, img2, dis_gene, float_gene, grade = img1.cuda(non_blocking=True), img2.cuda(non_blocking=True), \
+                                                            dis_gene.cuda(non_blocking=True), float_gene.cuda(non_blocking=True), \
+                                                            grade.cuda(non_blocking=True)
 
             # Class activation map
             cam = get_swin_cam(global_model, img1, grade, smooth=True)
@@ -57,7 +57,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             global_model.zero_grad()
             features, pred = global_model(img1)
             pos_features, pos_pred = local_model(img2, token_mask=mask)
-            neg_features, neg_pred = local_model(img3, token_mask=1 - mask)
+            neg_features, neg_pred = local_model(img1, token_mask=1 - mask)
             # project the features to contrastive space
             global_region_features, global_gene_features = projectors(features)
             pos_region_features, pos_gene_features = projectors(pos_features)
@@ -94,7 +94,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            # scheduler.step(epoch + i / len(train_loader))
+            scheduler.step(epoch + i / len(train_loader))
             # update the ema model
             update_ema_variables(global_model, local_model, args.ema_decay, cur_iter)
 
@@ -154,7 +154,7 @@ def validate(dataloader, model):
     predictions = torch.Tensor().cuda()
 
     with torch.no_grad():
-        for img, _, _, grade in dataloader:
+        for img, grade in dataloader:
             img, grade = img.cuda(non_blocking=True), grade.cuda(non_blocking=True)
             _, pred = model(img)
             pred = F.softmax(pred, dim=1)

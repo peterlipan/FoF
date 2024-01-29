@@ -21,9 +21,6 @@ class SwinTransformer(nn.Module):
             self.swin = Swinv2Model.from_pretrained(pretrained, config=config, add_pooling_layer=True, use_mask_token=True)
         self.classifier = nn.Linear(self.swin.num_features, config.num_labels)     
 
-        # Initialize weights and apply final processing
-        # self.post_init()
-
     def forward(self, x, token_mask=None):
         return_dict = self.config.use_return_dict
         outputs = self.swin(x, bool_masked_pos=token_mask, return_dict=return_dict)
@@ -42,8 +39,9 @@ class ContrastiveProjectors(nn.Module):
         )
         self.gene_projectors = nn.ModuleList(
             [nn.Sequential(
-                nn.Linear(hidden_dim, 64, bias=False),
+                nn.Linear(hidden_dim, hidden_dim, bias=False),
                 nn.ReLU(),
+                nn.Linear(hidden_dim, 64, bias=False),
             ) for _ in gene_list]
         )
     

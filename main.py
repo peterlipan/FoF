@@ -72,7 +72,7 @@ def main(gpu, args, wandb_logger):
                                     pretrained=args.pretrained, patch_size=args.patch_size, 
                                     window_size=args.window_size,)
     # add three dummy classes for the normal and other types
-    local_model = SwinTransformer(image_size=args.image_size, num_classes=num_classes + 4, 
+    local_model = SwinTransformer(image_size=args.image_size, num_classes=num_classes + 10, 
                                     pretrained=args.pretrained, patch_size=args.patch_size,
                                     window_size=args.window_size,)
     projectors = ContrastiveProjectors(global_model.config.hidden_size, args.dis_gene)
@@ -85,7 +85,7 @@ def main(gpu, args, wandb_logger):
     optim_params = [{'params': global_model.classifier.parameters()}, {'params': local_model.parameters()}, 
                     {'params': projectors.parameters(), 'lr_mult': 10}]
     optimizer = torch.optim.AdamW(optim_params, lr=args.lr)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=2)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=0)
 
     if args.dataparallel:
         global_model = convert_model(global_model)

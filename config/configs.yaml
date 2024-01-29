@@ -24,11 +24,11 @@ window_size: 8
 seed: 42
 batch_size: 1
 image_size: 1024
-epochs: 300
+epochs: 150
 ema_decay: 0.999
 lr: 1.0e-5
 lambda_float_gene: 5
 lambda_dis_gene: 0.2
 lambda_region: 0.2
-threshold: 0.4
+threshold: 0.5
 temperature: 0.07
