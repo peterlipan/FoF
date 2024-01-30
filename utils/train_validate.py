@@ -161,6 +161,6 @@ def validate(dataloader, model):
             ground_truth = torch.cat((ground_truth, grade))
             predictions = torch.cat((predictions, pred))
 
-        acc, f1, auc, bac, sens, spec, prec, mcc, kappa = compute_avg_metrics(ground_truth, predictions)
+        acc, f1, auc, bac, sens, spec, prec, mcc, kappa = compute_avg_metrics(ground_truth, predictions, avg='micro')
     model.train(training)
     return acc, f1, auc, bac, sens, spec, prec, mcc, kappa
