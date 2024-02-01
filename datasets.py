@@ -32,11 +32,6 @@ class TCGADataset(Dataset):
                 A.RandomRotate90(p=.5),
                 A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.2, rotate_limit=45, p=.5),
                 A.OneOf([
-                    A.ElasticTransform(alpha=120, sigma=120 * 0.05, alpha_affine=120 * 0.03, p=.5),
-                    A.GridDistortion(p=.5),
-                    A.OpticalDistortion(distort_limit=2, shift_limit=0.5, p=1),
-                ], p=.5),
-                A.OneOf([
                     A.RandomGridShuffle(grid=(3, 3), p=.5),
                     A.RandomGridShuffle(grid=(7, 7), p=.5),
                     A.RandomGridShuffle(grid=(11, 11), p=.5),

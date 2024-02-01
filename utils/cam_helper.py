@@ -255,14 +255,21 @@ def swinT_reshape_transform_huggingface(tensor, width, height):
     return result
 
 
+def reshape_transform_vit_huggingface(x):
+    # Remove the CLS token:
+    activations = x[:, 1:, :]
+    # Reshape to a 12 x 12 spatial image:
+    activations = activations.view(activations.shape[0], 64, 64, activations.shape[2])
+    # Transpose the features to be in the second coordinate:
+    activations = activations.transpose(2, 3).transpose(1, 2)
+    return activations
+
+
 def get_swin_cam(model, images, labels, smooth=True):
     training = model.training
     model.eval()
-    target_layer = model.module.swin.layernorm if isinstance(model, DataParallel) or isinstance(model, DDP) else model.swin.layernorm
-    window_size = model.module.config.window_size if isinstance(model, DataParallel) or isinstance(model, DDP) else model.config.window_size
-    reshape_transform = partial(swinT_reshape_transform_huggingface,
-                        width=images.shape[3]//32,
-                        height=images.shape[2]//32)
+    target_layer = model.module.encoder.encoder.layer[-2].output if isinstance(model, DataParallel) or isinstance(model, DDP) else model.encoder.encoder.layer[-2].output
+    reshape_transform = reshape_transform_vit_huggingface
     grad_cam = MyGradCAM(model=HuggingfaceToTensorModelWrapper(model),
                         target_layers=[target_layer], reshape_transform=reshape_transform, use_cuda=True)
     targets = [ClassifierOutputTarget(label) for label in labels]

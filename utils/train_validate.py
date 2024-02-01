@@ -19,7 +19,7 @@ from pytorch_grad_cam.utils.image import show_cam_on_image
 def update_ema_variables(global_model, local_model, alpha, step):
     # Use the true average until the exponential average is more correct
     alpha = min(1 - 1 / (step + 1), alpha)
-    for ema_param, param in zip(global_model.module.swin.parameters(), local_model.module.swin.parameters()):
+    for ema_param, param in zip(global_model.parameters(), local_model.module.parameters()):
         ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
 
 
@@ -27,9 +27,9 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
     cudnn.benchmark = False
     cudnn.deterministic = True
     train_loader, test_loader = dataloaders
-    model, projectors = models
+    model, global_projectors, local_projectors = models
     model.train()
-    projectors.train()
+    local_projectors.train()
     cls_criterion = nn.CrossEntropyLoss()
     start = time.time()
     
@@ -39,7 +39,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
     float_gene_guidance = GeneGuidance(args.batch_size, args.world_size)
     discrete_gene_guidance = MultiHeadContrastiveLoss(args.batch_size, args.world_size, args.temperature, args.dis_gene)
     global_local = RegionContrastiveLoss(args.batch_size, args.temperature, args.world_size)
-    neg_grade = 3 * torch.ones(args.batch_size, requires_grad=False).long().cuda()
+    # neg_grade = 3 * torch.ones(args.batch_size, requires_grad=False).long().cuda()
     for epoch in range(args.epochs):
         if isinstance(train_loader.sampler, DistributedSampler):
             train_loader.sampler.set_epoch(epoch)
@@ -58,16 +58,16 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             pos_features, _, pos_pred = model(img2, token_mask=mask)
             neg_features, _, neg_pred = model(img1, token_mask=1 - mask)
             # project the features to contrastive space
-            global_region_features, global_gene_features = projectors(features)
-            pos_region_features, pos_gene_features = projectors(pos_features)
-            neg_region_features, neg_gene_features = projectors(neg_features)
+            global_region_features, global_gene_features = global_projectors(features)
+            pos_region_features, pos_gene_features = local_projectors(pos_features)
+            neg_region_features, neg_gene_features = local_projectors(neg_features)
 
             # classification loss
             # global grade: [0, 2]; local grade: [0, 3] where 3 is the dummy/normal class
             global_cls = cls_criterion(pred, grade)
             pos_cls = cls_criterion(pos_pred, grade)
-            neg_cls = cls_criterion(neg_pred, neg_grade)
-            cls_loss = global_cls + pos_cls + neg_cls
+            neg_cls = -1 * cls_criterion(neg_pred, grade)
+            cls_loss = global_cls + pos_cls
             # region contrastive loss
             region_loss = args.lambda_region * global_local(global_region_features, pos_region_features, neg_region_features)
             # float gene guidance
@@ -93,8 +93,9 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            scheduler.step(epoch + i / len(train_loader))
+            # scheduler.step(epoch + i / len(train_loader))
             # update the ema model
+            update_ema_variables(global_projectors, local_projectors, args.ema_decay, cur_iter)
 
             if dist.is_available() and dist.is_initialized():
                 loss = loss.data.clone()

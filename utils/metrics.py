@@ -23,6 +23,6 @@ def compute_avg_metrics(ground_truth, activations, avg='micro'):
     spec = specificity_score(y_true=ground_truth, y_pred=predictions, average=avg)
     prec = precision_score(y_true=ground_truth, y_pred=predictions, average=avg)
     mcc = matthews_corrcoef(y_true=ground_truth, y_pred=predictions)
-    kappa = cohen_kappa_score(y1=ground_truth, y2=predictions, weights='quadratic')
+    kappa = cohen_kappa_score(y1=ground_truth, y2=predictions)
 
     return mean_acc, f1, auc, bac, sens, spec, prec, mcc, kappa
