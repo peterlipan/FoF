@@ -29,7 +29,7 @@ class Transformer(nn.Module):
         return_dict = self.config.use_return_dict
         outputs = self.encoder(x, bool_masked_pos=token_mask, return_dict=return_dict)
         sequence_output = outputs.last_hidden_state
-        pooled_output = self.pooler(sequence_output.transpose(1, 2))
+        pooled_output = self.pooler(sequence_output.transpose(1, 2)[:, :, 1:])
         pooled_output = torch.flatten(pooled_output, 1)
         global_logits = self.global_classifier(pooled_output)
         local_logits = self.local_classifier(pooled_output)

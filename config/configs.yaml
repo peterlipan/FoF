@@ -21,7 +21,7 @@ patch_size: 16
 
 # training options
 seed: 42
-batch_size: 1
+batch_size: 4
 image_size: 1024
 epochs: 150
 ema_decay: 0.999
