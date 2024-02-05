@@ -19,7 +19,8 @@ class SwinTransformer(nn.Module):
         self.swin = Swinv2Model(config, add_pooling_layer=True, use_mask_token=True)
         if pretrained:
             self.swin = Swinv2Model.from_pretrained(pretrained, config=config, add_pooling_layer=True, use_mask_token=True)
-        self.classifier = nn.Linear(self.swin.num_features, config.num_labels)     
+        self.global_classifier = nn.Linear(self.swin.num_features, config.num_labels)
+        self.local_classifier = nn.Linear(self.swin.num_features, config.num_labels + 10)
 
         # Initialize weights and apply final processing
         # self.post_init()
@@ -28,12 +29,13 @@ class SwinTransformer(nn.Module):
         return_dict = self.config.use_return_dict
         outputs = self.swin(x, bool_masked_pos=token_mask, return_dict=return_dict)
         features = outputs[1]
-        logits = self.classifier(features)
-        return features, logits
+        global_logits = self.global_classifier(features)
+        local_logits = self.local_classifier(features)
+        return features, global_logits, local_logits
 
 
 class ContrastiveProjectors(nn.Module):
-    def __init__(self, hidden_dim, gene_list):
+    def __init__(self, hidden_dim, gene_list, teacher=False):
         super(ContrastiveProjectors, self).__init__()
         self.region_projector = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim, bias=False),
@@ -46,6 +48,10 @@ class ContrastiveProjectors(nn.Module):
                 nn.ReLU(),
             ) for _ in gene_list]
         )
+
+        if teacher:
+            for param in self.parameters():
+                param.requires_grad = False
     
     def forward(self, features):
         region_features = self.region_projector(features)

@@ -12,13 +12,14 @@ checkpoints: "./checkpoints"
 
 # Dataset Options
 dataset: "TCGA"
+subset: "dropGradNaN"
 
 # Model options
-pretrained: "gagan3012/swinv2_1024"
+pretrained: ""
 dis_gene: ['idh mutation', 'codeletion', 'PTEN', 'EGFR', 'CARD11', 'FGFR2']
 float_gene: ['10q', '10p', '7p', '7q']
-patch_size: 4
-window_size: 8
+patch_size: 16
+window_size: 7
 
 # training options
 seed: 42

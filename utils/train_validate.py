@@ -19,7 +19,7 @@ from pytorch_grad_cam.utils.image import show_cam_on_image
 def update_ema_variables(global_model, local_model, alpha, step):
     # Use the true average until the exponential average is more correct
     alpha = min(1 - 1 / (step + 1), alpha)
-    for ema_param, param in zip(global_model.module.swin.parameters(), local_model.module.swin.parameters()):
+    for ema_param, param in zip(global_model.parameters(), local_model.module.parameters()):
         ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
 
 
@@ -27,16 +27,15 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
     cudnn.benchmark = False
     cudnn.deterministic = True
     train_loader, test_loader = dataloaders
-    global_model, local_model, projectors = models
-    global_model.train()
-    local_model.train()
-    projectors.train()
+    model, global_projectors, local_projectors = models
+    model.train()
+    local_projectors.train()
     cls_criterion = nn.CrossEntropyLoss()
     start = time.time()
     
     cur_iter = 0
     pos_ratio = 0
-    patch_size = global_model.module.config.patch_size if isinstance(global_model, DataParallel) or isinstance(global_model, DDP) else global_model.config.patch_size
+    patch_size = model.module.config.patch_size if isinstance(model, DataParallel) or isinstance(model, DDP) else model.config.patch_size
     float_gene_guidance = GeneGuidance(args.batch_size, args.world_size)
     discrete_gene_guidance = MultiHeadContrastiveLoss(args.batch_size, args.world_size, args.temperature, args.dis_gene)
     global_local = RegionContrastiveLoss(args.batch_size, args.temperature, args.world_size)
@@ -44,24 +43,24 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
     for epoch in range(args.epochs):
         if isinstance(train_loader.sampler, DistributedSampler):
             train_loader.sampler.set_epoch(epoch)
-        for i, (img1, img2, img3, dis_gene, float_gene, grade) in enumerate(train_loader):
-            img1, img2, img3, dis_gene, float_gene, grade = img1.cuda(non_blocking=True), img2.cuda(non_blocking=True), \
-                                                            img3.cuda(non_blocking=True), dis_gene.cuda(non_blocking=True), \
-                                                            float_gene.cuda(non_blocking=True), grade.cuda(non_blocking=True)
+        for i, (img1, img2, dis_gene, float_gene, grade) in enumerate(train_loader):
+            img1, img2, dis_gene, float_gene, grade = img1.cuda(non_blocking=True), img2.cuda(non_blocking=True), \
+                                                      dis_gene.cuda(non_blocking=True), \
+                                                      float_gene.cuda(non_blocking=True), grade.cuda(non_blocking=True)
 
             # Class activation map
-            cam = get_swin_cam(global_model, img1, grade, smooth=True)
+            cam = get_swin_cam(model, img1, grade, smooth=True)
             mask = cam2mask(cam, patch_size=patch_size, threshold=args.threshold)
 
             # global-local consistency
-            global_model.zero_grad()
-            features, pred = global_model(img1)
-            pos_features, pos_pred = local_model(img2, token_mask=mask)
-            neg_features, neg_pred = local_model(img3, token_mask=1 - mask)
+            model.zero_grad()
+            features, pred, _ = model(img1)
+            pos_features, _, pos_pred = model(img2, token_mask=mask)
+            neg_features, _, neg_pred = model(img1, token_mask=1 - mask)
             # project the features to contrastive space
-            global_region_features, global_gene_features = projectors(features)
-            pos_region_features, pos_gene_features = projectors(pos_features)
-            neg_region_features, neg_gene_features = projectors(neg_features)
+            global_region_features, global_gene_features = global_projectors(features)
+            pos_region_features, pos_gene_features = local_projectors(pos_features)
+            neg_region_features, neg_gene_features = local_projectors(neg_features)
 
             # classification loss
             # global grade: [0, 2]; local grade: [0, 3] where 3 is the dummy/normal class
@@ -96,7 +95,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             optimizer.step()
             # scheduler.step(epoch + i / len(train_loader))
             # update the ema model
-            update_ema_variables(global_model, local_model, args.ema_decay, cur_iter)
+            update_ema_variables(global_projectors, local_projectors, args.ema_decay, cur_iter)
 
             if dist.is_available() and dist.is_initialized():
                 loss = loss.data.clone()
@@ -118,7 +117,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                 if cur_iter % 100 == 1:
                     cur_lr = optimizer.param_groups[0]['lr']
                     test_acc, test_f1, test_auc, test_bac, test_sens, test_spec, test_prec, test_mcc, test_kappa = validate(
-                        test_loader, global_model)
+                        test_loader, model)
                     if logger is not None:
                         logger.log({'test': {'Accuracy': test_acc,
                                              'F1 score': test_f1,
@@ -154,9 +153,9 @@ def validate(dataloader, model):
     predictions = torch.Tensor().cuda()
 
     with torch.no_grad():
-        for img, _, _, grade in dataloader:
+        for img, grade in dataloader:
             img, grade = img.cuda(non_blocking=True), grade.cuda(non_blocking=True)
-            _, pred = model(img)
+            _, pred, _ = model(img)
             pred = F.softmax(pred, dim=1)
             ground_truth = torch.cat((ground_truth, grade))
             predictions = torch.cat((predictions, pred))
