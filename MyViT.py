@@ -456,12 +456,6 @@ class ViTPreTrainedModel(PreTrainedModel):
                 std=self.config.initializer_range,
             ).to(module.position_embeddings.dtype)
 
-            module.cls_token.data = nn.init.trunc_normal_(
-                module.cls_token.data.to(torch.float32),
-                mean=0.0,
-                std=self.config.initializer_range,
-            ).to(module.cls_token.dtype)
-
 
 VIT_START_DOCSTRING = r"""
     This model is a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass. Use it

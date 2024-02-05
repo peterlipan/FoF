@@ -14,9 +14,9 @@ class Transformer(nn.Module):
         self.config = config
         self.num_classes = num_classes
         
-        self.encoder = ViTModel(config, add_pooling_layer=False, use_mask_token=True)
+        self.encoder = ViTModel(config, add_pooling_layer=False, use_mask_token=True, use_cls_token=False)
         if pretrained:
-            self.enocer = ViTModel.from_pretrained(pretrained, config=config, add_pooling_layer=False, use_mask_token=True, ignore_mismatched_sizes=True)
+            self.enocer = ViTModel.from_pretrained(pretrained, config=config, add_pooling_layer=False, use_mask_token=True, use_cls_token=False, ignore_mismatched_sizes=True)
         # replace the official ViT 'pooler' as the real pooling layer
         self.pooler = nn.AdaptiveAvgPool1d(1)
         self.global_classifier = nn.Linear(config.hidden_size, num_classes)
