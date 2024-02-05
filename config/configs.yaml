@@ -12,22 +12,24 @@ checkpoints: "./checkpoints"
 
 # Dataset Options
 dataset: "TCGA"
+subset: "dropGradNaN"
 
 # Model options
-pretrained: "WinKawaks/vit-tiny-patch16-224"
+pretrained: ""
 dis_gene: ['idh mutation', 'codeletion', 'PTEN', 'EGFR', 'CARD11', 'FGFR2']
 float_gene: ['10q', '10p', '7p', '7q']
 patch_size: 16
+window_size: 7
 
 # training options
 seed: 42
-batch_size: 4
+batch_size: 1
 image_size: 1024
-epochs: 150
+epochs: 300
 ema_decay: 0.999
 lr: 1.0e-5
 lambda_float_gene: 5
 lambda_dis_gene: 0.2
 lambda_region: 0.2
-threshold: 0.5
+threshold: 0.4
 temperature: 0.07

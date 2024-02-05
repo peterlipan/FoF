@@ -32,6 +32,11 @@ class TCGADataset(Dataset):
                 A.RandomRotate90(p=.5),
                 A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.2, rotate_limit=45, p=.5),
                 A.OneOf([
+                    A.ElasticTransform(p=.5),
+                    A.GridDistortion(p=.5),
+                    A.OpticalDistortion(p=.5),
+                ], p=.5),
+                A.OneOf([
                     A.RandomGridShuffle(grid=(3, 3), p=.5),
                     A.RandomGridShuffle(grid=(7, 7), p=.5),
                     A.RandomGridShuffle(grid=(11, 11), p=.5),
@@ -71,5 +76,5 @@ class TCGADataset(Dataset):
             return view1, view2, dis_gene, float_gene, grade
         else:
             img = self.test_transform(image=img)['image']
-            return img, dis_gene, float_gene, grade
+            return img, grade
         
