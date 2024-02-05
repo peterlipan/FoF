@@ -14,7 +14,7 @@ checkpoints: "./checkpoints"
 dataset: "TCGA"
 
 # Model options
-pretrained: "WinKawaks/vit-small-patch16-224"
+pretrained: "WinKawaks/vit-tiny-patch16-224"
 dis_gene: ['idh mutation', 'codeletion', 'PTEN', 'EGFR', 'CARD11', 'FGFR2']
 float_gene: ['10q', '10p', '7p', '7q']
 patch_size: 16
