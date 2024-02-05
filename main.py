@@ -78,7 +78,7 @@ def main(gpu, args, wandb_logger):
     global_projectors = global_projectors.cuda()
     local_projectors = local_projectors.cuda()
 
-    optim_params = [{'params': model.classifier.parameters()}, {'params': local_projectors.parameters(), 'lr_mult': 10}]
+    optim_params = [{'params': model.parameters()}, {'params': local_projectors.parameters(), 'lr_mult': 10}]
     optimizer = torch.optim.AdamW(optim_params, lr=args.lr)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=2)
 
@@ -122,7 +122,7 @@ if __name__ == '__main__':
     if not os.path.exists(args.checkpoints):
         os.makedirs(args.checkpoints)
 
-    generate_splits(args.subset)
+    # generate_splits(args.subset)
 
     # init wandb
     if not args.debug:
