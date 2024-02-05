@@ -279,7 +279,7 @@ def get_swin_cam(model, images, labels, smooth=True):
     return cam
 
 
-def cam2mask(cam, patch_size, threshold=0.2):
+def cam2mask(cam, patch_size, threshold=0.5):
     pooler = nn.AvgPool2d(kernel_size=patch_size, stride=patch_size, padding=0)
     # mask_2d: (B, grid_size[0], grid_size[1])
     mask_2d = pooler(cam)
