@@ -78,7 +78,7 @@ def main(gpu, args, wandb_logger):
     global_projectors = global_projectors.cuda()
     local_projectors = local_projectors.cuda()
 
-    optim_params = [{'params': model.classifier.parameters()}, {'params': local_projectors.parameters(), 'lr_mult': 10}]
+    optim_params = [{'params': model.parameters()}, {'params': local_projectors.parameters(), 'lr_mult': 10}]
     optimizer = torch.optim.AdamW(optim_params, lr=args.lr)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=2)
 
@@ -92,7 +92,7 @@ def main(gpu, args, wandb_logger):
         if args.world_size > 1:
             model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
             local_projectors = torch.nn.SyncBatchNorm.convert_sync_batchnorm(local_projectors)
-            model = DDP(model, device_ids=[gpu], find_unused_parameters=True, broadcast_buffers=True)
+            model = DDP(model, device_ids=[gpu], find_unused_parameters=True, broadcast_buffers=False)
             local_projectors = DDP(local_projectors, device_ids=[gpu], find_unused_parameters=True, broadcast_buffers=False)
 
     models = (model, global_projectors, local_projectors)

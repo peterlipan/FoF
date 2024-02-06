@@ -240,7 +240,7 @@ class HuggingfaceToTensorModelWrapper(nn.Module):
         self.model = model
 
     def forward(self, x):
-        features, logits = self.model(x)
+        features, logits, _ = self.model(x)
         return logits
 
 

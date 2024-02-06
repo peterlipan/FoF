@@ -56,5 +56,11 @@ def generate_splits(subset='dropGradNaN'):
         temp['test']['grade'] = my_grade[test_id]
         my_data['splits'][i] = temp
 
-    with open("../my_split_dropGradeNaN.pkl", "wb") as f:
+    with open("./my_split_dropGradeNaN.pkl", "wb") as f:
         pickle.dump(my_data, f)
+
+    print(f"splited the dataset with {subset}")
+
+
+if __name__ == '__main__':
+    generate_splits()
