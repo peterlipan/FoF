@@ -268,7 +268,7 @@ def reshape_transform_vit_huggingface(activations):
 def get_swin_cam(model, images, labels, smooth=True):
     training = model.training
     model.eval()
-    target_layer = model.module.pooler if isinstance(model, DataParallel) or isinstance(model, DDP) else model.pooler
+    target_layer = model.module.vit.encoder.layer[-2].output if isinstance(model, DataParallel) or isinstance(model, DDP) else model.vit.encoder.layer[-2].output
     reshape_transform = reshape_transform_vit_huggingface
     grad_cam = MyGradCAM(model=HuggingfaceToTensorModelWrapper(model),
                         target_layers=[target_layer], reshape_transform=reshape_transform, use_cuda=True)

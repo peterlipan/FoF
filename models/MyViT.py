@@ -75,7 +75,8 @@ class ViTEmbeddings(nn.Module):
         self.mask_token = nn.Parameter(torch.zeros(1, 1, config.hidden_size)) if use_mask_token else None
         self.patch_embeddings = ViTPatchEmbeddings(config)
         num_patches = self.patch_embeddings.num_patches
-        self.position_embeddings = nn.Parameter(torch.randn(1, num_patches + 1, config.hidden_size))
+        addition = 1 if use_cls_token else 0
+        self.position_embeddings = nn.Parameter(torch.randn(1, num_patches + addition, config.hidden_size))
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.config = config
 
