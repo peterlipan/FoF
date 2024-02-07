@@ -29,8 +29,8 @@ epochs: 50
 # optimizer options
 ema_decay: 0.999
 lr: 1.0e-5
-weight_decay: 0.01
-warmup_epochs: 10
+weight_decay: 0.05
+warmup_epochs: 5
 
 # loss options
 lambda_float_gene: 5

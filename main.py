@@ -39,6 +39,7 @@ def main(gpu, args, wandb_logger):
 
     # training set
     train_dataset = TCGADataset(args, data_cv_split, gene_names, split='train')
+    step_per_epoch = len(train_dataset) // (args.batch_size * args.world_size)
 
     # set sampler for parallel training
     if args.world_size > 1 and not args.dataparallel:
@@ -81,7 +82,7 @@ def main(gpu, args, wandb_logger):
 
     optim_params = [{'params': model.parameters()}, {'params': local_projectors.parameters(), 'lr_mult': 10}]
     optimizer = torch.optim.AdamW(optim_params, lr=args.lr, weight_decay=args.weight_decay)
-    scheduler = get_cosine_schedule_with_warmup(optimizer, args.warmup_epochs, args.epochs)
+    scheduler = get_cosine_schedule_with_warmup(optimizer, args.warmup_epochs * step_per_epoch, args.epochs * step_per_epoch)
 
     if args.dataparallel:
         model = convert_model(model)
