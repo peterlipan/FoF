@@ -1,16 +1,13 @@
-import os
 import torch
 import numpy as np
 from PIL import Image
 import albumentations as A
-import torchvision.transforms as T
 from torch.utils.data.dataset import Dataset
 from albumentations.pytorch import ToTensorV2
 
 
 class TCGADataset(Dataset):
     def __init__(self, args, data, gene_list, split='train'):
-        # selected_genes = ['codeletion', 'idh mutation', 'EGFR', 'CDKN2A', 'CDKN2B', 'PTEN', 'MDM4', 'MYC', 'RB1', 'FGFR2', 'BRAF', '7p', '7q', '9p', '10q']
         # selected by ANOVA test
         self.dis_gene = args.dis_gene
         self.float_gene = args.float_gene

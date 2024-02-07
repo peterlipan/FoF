@@ -4,14 +4,15 @@ import wandb
 import pickle
 import argparse
 import torch.distributed as dist
-from models import SwinTransformer, ContrastiveProjectors
-from datasets import TCGADataset
+from models import Transformer, ContrastiveProjectors
+from dataset import TCGADataset, generate_splits
 import torch.multiprocessing as mp
 from torch.nn.parallel import DataParallel
 from torch.nn.parallel import DistributedDataParallel as DDP
 import numpy as np
 from torch.utils.data import DataLoader
-from utils import yaml_config_hook, convert_model, train, generate_splits
+from transformers.optimization import get_cosine_schedule_with_warmup
+from utils import yaml_config_hook, convert_model, train
 import warnings
 
 
@@ -59,7 +60,7 @@ def main(gpu, args, wandb_logger):
     if rank == 0:
         test_dataset = TCGADataset(args, data_cv_split, gene_names, split='test')
         test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False,
-                                 num_workers=args.workers, pin_memory=True)
+        num_workers=args.workers, pin_memory=True)
     else:
         test_loader = None
 
@@ -68,19 +69,19 @@ def main(gpu, args, wandb_logger):
     num_classes = train_dataset.num_classes
 
     # model init
-    model = SwinTransformer(image_size=args.image_size, num_classes=num_classes,
-                            pretrained=args.pretrained, patch_size=args.patch_size,
-                            window_size=args.window_size, )
+    model = Transformer(image_size=args.image_size, num_classes=num_classes, 
+                            pretrained=args.pretrained, patch_size=args.patch_size)
     global_projectors = ContrastiveProjectors(model.config.hidden_size, args.dis_gene, teacher=True)
     local_projectors = ContrastiveProjectors(model.config.hidden_size, args.dis_gene, teacher=False)
+
 
     model = model.cuda()
     global_projectors = global_projectors.cuda()
     local_projectors = local_projectors.cuda()
 
     optim_params = [{'params': model.parameters()}, {'params': local_projectors.parameters(), 'lr_mult': 10}]
-    optimizer = torch.optim.AdamW(optim_params, lr=args.lr)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=2)
+    optimizer = torch.optim.AdamW(optim_params, lr=args.lr, weight_decay=args.weight_decay)
+    scheduler = get_cosine_schedule_with_warmup(optimizer, args.warmup_epochs, args.epochs)
 
     if args.dataparallel:
         model = convert_model(model)
@@ -92,13 +93,13 @@ def main(gpu, args, wandb_logger):
         if args.world_size > 1:
             model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
             local_projectors = torch.nn.SyncBatchNorm.convert_sync_batchnorm(local_projectors)
-            model = DDP(model, device_ids=[gpu], find_unused_parameters=True, broadcast_buffers=True)
+            model = DDP(model, device_ids=[gpu], find_unused_parameters=True, broadcast_buffers=False)
             local_projectors = DDP(local_projectors, device_ids=[gpu], find_unused_parameters=True, broadcast_buffers=False)
-
+    
     models = (model, global_projectors, local_projectors)
+            
 
     train(loaders, models, optimizer, scheduler, args, wandb_logger)
-
 
 if __name__ == '__main__':
     # args
@@ -112,6 +113,9 @@ if __name__ == '__main__':
 
     args.world_size = args.gpus * args.nodes
 
+    # split the dataset
+    generate_splits(args.data_path, args.seed, subset=args.split)
+
     # Master address for distributed data parallel
     os.environ["CUDA_VISIBLE_DEVICES"] = args.visible_gpus
     os.environ['TORCH_DISTRIBUTED_DEBUG'] = 'DETAIL'
@@ -121,8 +125,6 @@ if __name__ == '__main__':
     # check checkpoints path
     if not os.path.exists(args.checkpoints):
         os.makedirs(args.checkpoints)
-
-    # generate_splits(args.subset)
 
     # init wandb
     if not args.debug:

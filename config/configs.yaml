@@ -7,25 +7,32 @@ workers: 8
 visible_gpus: "0,1,2,3"
 
 # Paths
-data_path: "./my_split_dropGradeNaN.pkl"
+data_path: "./dataset/my_split_dropGradeNaN.pkl"
 checkpoints: "./checkpoints"
 
 # Dataset Options
 dataset: "TCGA"
+split: "dropGradNaN"
+dis_gene: ['idh mutation', 'codeletion', 'PTEN', 'EGFR', 'CARD11', 'FGFR2']
+float_gene: ['10q', '10p', '7p', '7q']
 
 # Model options
 pretrained: "WinKawaks/vit-tiny-patch16-224"
-dis_gene: ['idh mutation', 'codeletion', 'PTEN', 'EGFR', 'CARD11', 'FGFR2']
-float_gene: ['10q', '10p', '7p', '7q']
 patch_size: 16
+image_size: 1024
 
 # training options
 seed: 42
 batch_size: 1
-image_size: 1024
-epochs: 150
+epochs: 50
+
+# optimizer options
 ema_decay: 0.999
 lr: 1.0e-5
+weight_decay: 0.01
+warmup_epochs: 10
+
+# loss options
 lambda_float_gene: 5
 lambda_dis_gene: 0.2
 lambda_region: 0.2

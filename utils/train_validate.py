@@ -93,7 +93,6 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            # scheduler.step(epoch + i / len(train_loader))
             # update the ema model
             update_ema_variables(global_projectors, local_projectors, args.ema_decay, cur_iter)
 
@@ -144,6 +143,8 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                         epoch, args.epochs, i + 1, len(train_loader), time.time() - start,
                         cur_lr, loss.item()), end='', flush=True)
 
+        scheduler.step()
+
 
 def validate(dataloader, model):
     training = model.training
@@ -153,7 +154,7 @@ def validate(dataloader, model):
     predictions = torch.Tensor().cuda()
 
     with torch.no_grad():
-        for img, _, _, grade in dataloader:
+        for img, grade in dataloader:
             img, grade = img.cuda(non_blocking=True), grade.cuda(non_blocking=True)
             _, pred, _ = model(img)
             pred = F.softmax(pred, dim=1)
