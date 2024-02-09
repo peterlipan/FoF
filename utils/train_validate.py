@@ -66,7 +66,7 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
             # global grade: [0, 2]; local grade: [0, 3] where 3 is the dummy/normal class
             global_cls = cls_criterion(pred, grade)
             pos_cls = cls_criterion(pos_pred, grade)
-            neg_cls = cls_criterion(neg_pred, neg_grade)
+            neg_cls = args.lambda_neg * cls_criterion(neg_pred, neg_grade)
             cls_loss = global_cls + pos_cls + neg_cls
             # region contrastive loss
             region_loss = args.lambda_region * global_local(global_region_features, pos_region_features, neg_region_features)

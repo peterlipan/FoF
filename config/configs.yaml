@@ -24,17 +24,18 @@ image_size: 1024
 # training options
 seed: 42
 batch_size: 1
-epochs: 50
+epochs: 60
 
 # optimizer options
 ema_decay: 0.999
-lr: 1.0e-5
+lr: 1.0e-4
 weight_decay: 0.05
-warmup_epochs: 5
+warmup_epochs: 10
 
 # loss options
 lambda_float_gene: 5
 lambda_dis_gene: 0.2
 lambda_region: 0.2
+lambda_neg: 1.0
 threshold: 0.5
 temperature: 0.07
