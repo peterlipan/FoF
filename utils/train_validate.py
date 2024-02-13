@@ -1,3 +1,4 @@
+import os
 import cv2
 import torch
 import wandb
@@ -143,6 +144,25 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                     print('\rEpoch: [%2d/%2d] Iter [%4d/%4d] || Time: %4.4f sec || lr: %.6f || Loss: %.4f' % (
                         epoch, args.epochs, i + 1, len(train_loader), time.time() - start,
                         cur_lr, loss.item()), end='', flush=True)
+
+        # validate the model
+        test_acc, test_f1, test_auc, test_bac, test_sens, test_spec, test_prec, test_mcc, test_kappa = validate(test_loader, model)
+        if logger is not None:
+            logger.log({'test': {'Accuracy': test_acc,
+                                 'F1 score': test_f1,
+                                 'AUC': test_auc,
+                                 'Balanced Accuracy': test_bac,
+                                 'Sensitivity': test_sens,
+                                 'Specificity': test_spec,
+                                 'Precision': test_prec,
+                                 'MCC': test_mcc,
+                                 'Kappa': test_kappa}})
+        print(f"Fold {args.fold}, Test Accuracy: {test_acc}, Test F1: {test_f1}, Test AUC: {test_auc}, "
+              f"Test BAC: {test_bac}, Test Sensitivity: {test_sens}, Test Specificity: {test_spec}, "
+              f"Test Precision: {test_prec}, Test MCC: {test_mcc}, Test Kappa: {test_kappa}")
+        model_path = os.path.join(args.checkpoints, f"fold_{args.fold}_acc_{test_acc}.pth")
+        state_dict = model.module.state_dict() if isinstance(model, DataParallel) or isinstance(model, DDP) else model.state_dict()
+        torch.save(state_dict, model_path)
 
 
 def validate(dataloader, model):

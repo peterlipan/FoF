@@ -30,7 +30,7 @@ fold: 0
 # optimizer options
 ema_decay: 0.999
 lr: 1.0e-4
-weight_decay: 0.05
+weight_decay: 0.1
 warmup_epochs: 15
 
 # loss options
