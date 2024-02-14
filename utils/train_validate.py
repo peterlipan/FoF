@@ -163,13 +163,14 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                                      'Precision': test_prec,
                                      'MCC': test_mcc,
                                      'Kappa': test_kappa}})
-            print(f"Fold {args.fold}, Test Accuracy: {test_acc}, Test F1: {test_f1}, Test AUC: {test_auc}, "
+            print(f"\nFold {args.fold}, Test Accuracy: {test_acc}, Test F1: {test_f1}, Test AUC: {test_auc}, "
                   f"Test BAC: {test_bac}, Test Sensitivity: {test_sens}, Test Specificity: {test_spec}, "
                   f"Test Precision: {test_prec}, Test MCC: {test_mcc}, Test Kappa: {test_kappa}")
-            model_path = os.path.join(args.checkpoints, f"fold_{args.fold}_acc_{test_acc}.pth")
-            state_dict = model.module.state_dict() if isinstance(model, DataParallel) or isinstance(model,
-                                                                                                    DDP) else model.state_dict()
-            torch.save(state_dict, model_path)
+            if epoch == args.epochs - 1:
+                model_path = os.path.join(args.checkpoints, f"fold_{args.fold}_acc_{test_acc}.pth")
+                state_dict = model.module.state_dict() if isinstance(model, DataParallel) or isinstance(model,
+                                                                                                        DDP) else model.state_dict()
+                torch.save(state_dict, model_path)
 
 
 def validate(dataloader, model):
