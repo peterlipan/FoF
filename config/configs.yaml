@@ -1,10 +1,10 @@
 # distributed training
 nodes: 1
-gpus: 4
+gpus: 2
 nr: 0
 dataparallel: 0
 workers: 8
-visible_gpus: "0,1,2,3"
+visible_gpus: "6,7"
 
 # Paths
 data_path: "./dataset/my_split_dropGradeNaN.pkl"
@@ -23,9 +23,9 @@ image_size: 1024
 
 # training options
 seed: 42
-batch_size: 1
+batch_size: 2
 epochs: 70
-fold: 0
+fold: 2
 
 # optimizer options
 ema_decay: 0.999

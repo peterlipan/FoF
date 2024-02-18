@@ -121,12 +121,13 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
                                 'Original Image': [wandb.Image(item) for item in wandb_imgs]})
                 if cur_iter % 100 == 1:
                     cur_lr = optimizer.param_groups[0]['lr']
-                    test_acc, test_f1, test_auc, test_bac, test_sens, test_spec, test_prec, test_mcc, test_kappa = validate(
+                    test_acc, test_f1, test_auc, test_ap, test_bac, test_sens, test_spec, test_prec, test_mcc, test_kappa = validate(
                         test_loader, model)
                     if logger is not None:
                         logger.log({'test': {'Accuracy': test_acc,
                                              'F1 score': test_f1,
                                              'AUC': test_auc,
+                                             'AP': test_ap,
                                              'Balanced Accuracy': test_bac,
                                              'Sensitivity': test_sens,
                                              'Specificity': test_spec,
@@ -152,12 +153,13 @@ def train(dataloaders, models, optimizer, scheduler, args, logger):
         # validate and save the model
         if args.rank == 0:
             if epoch == args.epochs - 1:
-                test_acc, test_f1, test_auc, test_bac, test_sens, test_spec, test_prec, test_mcc, test_kappa = validate(
+                test_acc, test_f1, test_auc, test_ap, test_bac, test_sens, test_spec, test_prec, test_mcc, test_kappa = validate(
                     test_loader, model)
                 if logger is not None:
                     logger.log({'test': {'Accuracy': test_acc,
                                          'F1 score': test_f1,
                                          'AUC': test_auc,
+                                         'AP': test_ap,
                                          'Balanced Accuracy': test_bac,
                                          'Sensitivity': test_sens,
                                          'Specificity': test_spec,
@@ -189,6 +191,6 @@ def validate(dataloader, model):
             ground_truth = torch.cat((ground_truth, grade))
             predictions = torch.cat((predictions, pred))
 
-        acc, f1, auc, bac, sens, spec, prec, mcc, kappa = compute_avg_metrics(ground_truth, predictions, avg='micro')
+        acc, f1, auc, ap, bac, sens, spec, prec, mcc, kappa = compute_avg_metrics(ground_truth, predictions, avg='micro')
     model.train(training)
-    return acc, f1, auc, bac, sens, spec, prec, mcc, kappa
+    return acc, f1, auc, ap, bac, sens, spec, prec, mcc, kappa
