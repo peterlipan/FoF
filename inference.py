@@ -41,20 +41,18 @@ def save_img(img, cam, root, label, idx):
     path = os.path.join(root, f"grade_{label}")
     os.makedirs(path, exist_ok=True)
 
-    # generate positive region
-    pixel_mask = cam > 0.5
-    pos_region = img * pixel_mask.float()
     # to numpy
     img = img.permute(0, 2, 3, 1).detach().cpu().numpy()[0]
     img = (img - np.min(img)) / np.ptp(img)
     cam = cam.detach().cpu().numpy()[0]
-    pos_region = pos_region.permute(0, 2, 3, 1).detach().cpu().numpy()[0]
-    img_with_cam = show_cam_on_image(img, cam, use_rgb=True)
+    pixel_mask = cam > 0.5
+    pos_region = img * pixel_mask[..., np.newaxis]
+    img_with_cam = show_cam_on_image(img, cam, use_rgb=False)
 
     # save the image
     cv2.imwrite(os.path.join(path, f"{idx}_cam.jpg"), img_with_cam)
-    cv2.imwrite(os.path.join(path, f"{idx}_pos.jpg"), pos_region)
-    cv2.imwrite(os.path.join(path, f"{idx}_img.jpg"), img)
+    cv2.imwrite(os.path.join(path, f"{idx}_pos.jpg"), np.uint8(255 * pos_region))
+    cv2.imwrite(os.path.join(path, f"{idx}_img.jpg"), np.uint8(255 * img))
 
 
 def main():
@@ -90,5 +88,5 @@ def main():
 
 
 if __name__ == "__main__":
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "6"
     main()
