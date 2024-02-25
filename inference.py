@@ -15,8 +15,8 @@ from pytorch_grad_cam.utils.image import show_cam_on_image
 
 class TCGADataset4Inf(Dataset):
     def __init__(self, data, image_size=1024):
-        self.img = data['train']['x_path'] + data['test']['x_path']
-        self.grade = data['train']['grade'] + data['test']['grade']
+        self.img = np.concatenate([data['train']['x_path'], data['test']['x_path']])
+        self.grade = np.concatenate([data['train']['grade'], data['test']['grade']])
         self.num_classes = len(set(self.grade))
 
         self.test_transform = A.Compose([
@@ -72,23 +72,22 @@ def main():
     loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
 
     # model init
-    model = Transformer(image_size=1024, num_classes=dataset.num_classes, pretrained=False)
+    model = Transformer(image_size=1024, num_classes=dataset.num_classes, pretrained="WinKawaks/vit-tiny-patch16-224", patch_size=16)
     # load model
-    checkpoint = torch.load("./weights/fold0.pth")
+    checkpoint = torch.load("./weights/fold_0.pth")
     model.load_state_dict(checkpoint)
     model = model.cuda()
 
     # inference
     idx = 0
-    model.eval()
-    with torch.no_grad():
-        for img, grade in loader:
-            img, grade = img.cuda(non_blocking=True), grade.cuda(non_blocking=True)
-            cam = get_swin_cam(model, img, grade, smooth=True)
-            save_img(img, cam, save_path, grade, idx)
-            idx += 1
+    for img, grade in loader:
+        print(f"Processing {idx}th image", end='', flush=True)
+        img, grade = img.cuda(non_blocking=True), grade.cuda(non_blocking=True)
+        cam = get_swin_cam(model, img, grade, smooth=True)
+        save_img(img, cam, save_path, grade, idx)
+        idx += 1
 
 
 if __name__ == "__main__":
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "6"
     main()
