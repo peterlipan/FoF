@@ -97,9 +97,8 @@ def main(gpu, args, wandb_logger):
             local_projectors = DDP(local_projectors, device_ids=[gpu], find_unused_parameters=True, broadcast_buffers=False)
     
     models = (model, global_projectors, local_projectors)
-            
-
     train(loaders, models, optimizer, scheduler, args, wandb_logger)
+
 
 if __name__ == '__main__':
     # args

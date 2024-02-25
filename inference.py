@@ -46,6 +46,7 @@ def save_img(img, cam, root, label, idx):
     pos_region = img * pixel_mask.float()
     # to numpy
     img = img.permute(0, 2, 3, 1).detach().cpu().numpy()[0]
+    img = (img - np.min(img)) / np.ptp(img)
     cam = cam.detach().cpu().numpy()[0]
     pos_region = pos_region.permute(0, 2, 3, 1).detach().cpu().numpy()[0]
     img_with_cam = show_cam_on_image(img, cam, use_rgb=True)
@@ -89,5 +90,5 @@ def main():
 
 
 if __name__ == "__main__":
-    os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     main()
