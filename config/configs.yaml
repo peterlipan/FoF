@@ -25,7 +25,7 @@ image_size: 1024
 seed: 42
 batch_size: 2
 epochs: 70
-fold: 2
+fold: 0
 
 # optimizer options
 ema_decay: 0.999
