@@ -82,7 +82,7 @@ def main():
     # inference
     idx = 0
     for img, grade in loader:
-        print(f"Processing {idx}th image", end='', flush=True)
+        print(f"\rProcessing {idx}th image", end='', flush=True)
         img, grade = img.cuda(non_blocking=True), grade.cuda(non_blocking=True)
         cam = get_swin_cam(model, img, grade, smooth=True)
         save_img(img, cam, save_path, grade, idx)
