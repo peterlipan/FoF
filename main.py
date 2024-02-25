@@ -33,7 +33,6 @@ def main(gpu, args, wandb_logger):
 
     # load data file
     data_cv = pickle.load(open(args.data_path, 'rb'))
-    # TODO: implement cross-validation
     data_cv_split = data_cv['splits'][args.fold]
     gene_names = data_cv['data_pd'].columns[-80:]
 
