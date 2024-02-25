@@ -47,11 +47,13 @@ def save_img(img, cam, root, label, idx):
     cam = cam.detach().cpu().numpy()[0]
     pixel_mask = cam > 0.5
     pos_region = img * pixel_mask[..., np.newaxis]
+    neg_region = img * ~pixel_mask[..., np.newaxis]
     img_with_cam = show_cam_on_image(img, cam, use_rgb=False)
 
     # save the image
     cv2.imwrite(os.path.join(path, f"{idx}_cam.jpg"), img_with_cam)
     cv2.imwrite(os.path.join(path, f"{idx}_pos.jpg"), np.uint8(255 * pos_region))
+    cv2.imwrite(os.path.join(path, f"{idx}_neg.jpg"), np.uint8(255 * neg_region))
     cv2.imwrite(os.path.join(path, f"{idx}_img.jpg"), np.uint8(255 * img))
 
 
