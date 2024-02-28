@@ -6,7 +6,6 @@ import numpy as np
 from PIL import Image
 import albumentations as A
 from models import Transformer
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from albumentations.pytorch import ToTensorV2
@@ -15,7 +14,7 @@ from pytorch_grad_cam.utils.image import show_cam_on_image
 
 
 class TCGADataset4Inf(Dataset):
-    def __init__(self, data, image_size=1024):
+    def __init__(self, data, gene_list, image_size=1024):
         self.img = np.concatenate([data['train']['x_path'], data['test']['x_path']])
         self.grade = np.concatenate([data['train']['grade'], data['test']['grade']])
         self.num_classes = len(set(self.grade))
@@ -36,7 +35,7 @@ class TCGADataset4Inf(Dataset):
         return img, grade
 
 
-def save_img(img, cam, root, label, idx, suffix):
+def save_img(img, cam, root, label, idx):
     # define the path
     label = label.detach().cpu().numpy()[0]
     path = os.path.join(root, f"grade_{label}")
@@ -52,9 +51,9 @@ def save_img(img, cam, root, label, idx, suffix):
     img_with_cam = show_cam_on_image(img, cam, use_rgb=False)
 
     # save the image
-    cv2.imwrite(os.path.join(path, f"{idx}_cam_{suffix}.jpg"), img_with_cam)
-    cv2.imwrite(os.path.join(path, f"{idx}_pos_{suffix}.jpg"), np.uint8(255 * pos_region))
-    cv2.imwrite(os.path.join(path, f"{idx}_neg_{suffix}.jpg"), np.uint8(255 * neg_region))
+    cv2.imwrite(os.path.join(path, f"{idx}_cam.jpg"), img_with_cam)
+    cv2.imwrite(os.path.join(path, f"{idx}_pos.jpg"), np.uint8(255 * pos_region))
+    cv2.imwrite(os.path.join(path, f"{idx}_neg.jpg"), np.uint8(255 * neg_region))
     cv2.imwrite(os.path.join(path, f"{idx}_img.jpg"), np.uint8(255 * img))
 
 
@@ -86,11 +85,7 @@ def main():
         print(f"\rProcessing {idx}th image", end='', flush=True)
         img, grade = img.cuda(non_blocking=True), grade.cuda(non_blocking=True)
         cam = get_swin_cam(model, img, grade, smooth=True)
-        _, pred, _ = model(img)
-        pred = F.softmax(pred, dim=1)
-        pred = pred.argmax(dim=1)
-        suffix = pred.eq(grade).item()
-        save_img(img, cam, save_path, grade, idx, suffix)
+        save_img(img, cam, save_path, grade, idx)
         idx += 1
 
 
