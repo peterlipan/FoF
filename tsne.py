@@ -14,9 +14,13 @@ from pytorch_grad_cam.utils.image import show_cam_on_image
 
 
 class TCGADataset4Inf(Dataset):
-    def __init__(self, data, gene_list, image_size=1024):
+    def __init__(self, data, gene_names, image_size=1024):
+        self.dis_gene_names = ['idh mutation', 'codeletion', 'PTEN', 'EGFR', 'CARD11', 'FGFR2']
+        dis_gene_idx = [gene_names.tolist().index(gene) for gene in self.dis_gene_names]
         self.img = np.concatenate([data['train']['x_path'], data['test']['x_path']])
         self.grade = np.concatenate([data['train']['grade'], data['test']['grade']])
+        self.gene = np.concatenate([data['train']['x_omic'], data['test']['x_omic']])
+        self.dis_gene = self.gene[:, dis_gene_idx]
         self.num_classes = len(set(self.grade))
 
         self.test_transform = A.Compose([
@@ -30,9 +34,9 @@ class TCGADataset4Inf(Dataset):
 
     def __getitem__(self, index):
         img = np.array(Image.open(self.img[index]).convert('RGB'))
-        grade = torch.tensor(self.grade[index]).long()
+        dis_gene = torch.tensor(self.dis_gene[index]).long()
         img = self.test_transform(image=img)['image']
-        return img, grade
+        return img, dis_gene
 
 
 def save_img(img, cam, root, label, idx):
@@ -61,15 +65,16 @@ def main():
     torch.manual_seed(42)
     np.random.seed(42)
 
-    save_path = "./results/Ours"
+    save_path = "./results/t-SNE"
     os.makedirs(save_path, exist_ok=True)
 
     # load data file
     data_cv = pickle.load(open("./dataset/my_split_dropGradeNaN.pkl", 'rb'))
+    gene_names = data_cv['data_pd'].columns[-80:]
     data_cv_split = data_cv['splits'][0]
 
     # dataset
-    dataset = TCGADataset4Inf(data_cv_split)
+    dataset = TCGADataset4Inf(data_cv_split, gene_names)
     loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
 
     # model init
@@ -81,12 +86,21 @@ def main():
 
     # inference
     idx = 0
-    for img, grade in loader:
+    feature_list = torch.Tensor().cuda()
+    gene_list = torch.Tensor().cuda()
+    for img, gene in loader:
         print(f"\rProcessing {idx}th image", end='', flush=True)
-        img, grade = img.cuda(non_blocking=True), grade.cuda(non_blocking=True)
-        cam = get_swin_cam(model, img, grade, smooth=True)
-        save_img(img, cam, save_path, grade, idx)
-        idx += 1
+        img, gene = img.cuda(non_blocking=True), gene.cuda(non_blocking=True)
+        features, _, _ = model(img)
+        feature_list = torch.cat((feature_list, features))
+        gene_list = torch.cat((gene_list, gene))
+
+    feature_list = feature_list.cpu().detach().numpy()
+    gene_list = gene_list.cpu().detach().numpy()
+
+    # save the features
+    np.save(os.path.join(save_path, "features.npy"), feature_list)
+    np.save(os.path.join(save_path, "gene.npy"), gene_list)
 
 
 if __name__ == "__main__":
