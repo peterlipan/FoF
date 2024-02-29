@@ -94,6 +94,7 @@ def main():
         features, _, _ = model(img)
         feature_list.append(features.detach().cpu().numpy())
         gene_list.append(gene.detach().cpu().numpy())
+        idx += 1
 
     # save the features
     np.save(os.path.join(save_path, "features.npy"), np.array(feature_list))
