@@ -34,7 +34,7 @@ class TCGADataset4Inf(Dataset):
 
     def __getitem__(self, index):
         img = np.array(Image.open(self.img[index]).convert('RGB'))
-        dis_gene = torch.tensor(self.dis_gene[index]).long()
+        dis_gene = self.dis_gene[index]
         img = self.test_transform(image=img)['image']
         return img, dis_gene
 
@@ -86,21 +86,18 @@ def main():
 
     # inference
     idx = 0
-    feature_list = torch.Tensor().cuda()
-    gene_list = torch.Tensor().cuda()
+    feature_list = []
+    gene_list = []
     for img, gene in loader:
         print(f"\rProcessing {idx}th image", end='', flush=True)
-        img, gene = img.cuda(non_blocking=True), gene.cuda(non_blocking=True)
+        img = img.cuda(non_blocking=True)
         features, _, _ = model(img)
-        feature_list = torch.cat((feature_list, features))
-        gene_list = torch.cat((gene_list, gene))
-
-    feature_list = feature_list.cpu().detach().numpy()
-    gene_list = gene_list.cpu().detach().numpy()
+        feature_list.append(features.detach().cpu().numpy())
+        gene_list.append(gene.detach().cpu().numpy())
 
     # save the features
-    np.save(os.path.join(save_path, "features.npy"), feature_list)
-    np.save(os.path.join(save_path, "gene.npy"), gene_list)
+    np.save(os.path.join(save_path, "features.npy"), np.array(feature_list))
+    np.save(os.path.join(save_path, "gene.npy"), np.array(gene_list))
 
 
 if __name__ == "__main__":
