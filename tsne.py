@@ -91,7 +91,7 @@ def main():
     for img, gene in loader:
         print(f"\rProcessing {idx}th image", end='', flush=True)
         img = img.cuda(non_blocking=True)
-        features, _, _ = model(img)
+        features, _ = model(img)
         feature_list.append(features.detach().cpu().numpy())
         gene_list.append(gene.detach().cpu().numpy())
         idx += 1
