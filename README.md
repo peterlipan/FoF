@@ -1,2 +1,2 @@
-# MCL
-Multi-task Contrastive Learning for WSI understanding
+# FoF
+Focus on Focus
