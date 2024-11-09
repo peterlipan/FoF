@@ -112,8 +112,9 @@ if __name__ == '__main__':
 
     args.world_size = args.gpus * args.nodes
 
-    # split the dataset
-    generate_splits(args.data_path, args.seed, subset=args.split)
+    # split the dataset based on gbmlgg15cv_all_st_0_0_0.pkl provided by pathomics
+    # no need to redo if you have my_split_dropGradeNaN.pkl in the dataset folder
+    # generate_splits(args.data_path, args.seed, subset=args.split)
 
     # Master address for distributed data parallel
     os.environ["CUDA_VISIBLE_DEVICES"] = args.visible_gpus
@@ -127,7 +128,7 @@ if __name__ == '__main__':
 
     # init wandb
     if not args.debug:
-        wandb.login(key="cb1e7d54d21d9080b46d2b1ae2a13d895770aa29")
+        wandb.login(key="YOUR WANDB KEY HERE")
         config = dict()
 
         for k, v in yaml_config.items():
